@@ -1,0 +1,47 @@
+{
+  "name": "ai-office",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pixel-art office whose employees mirror running Claude Code (and other AI) sessions.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "demo": "node scripts/demo.js",
+    "install-hooks": "node scripts/install-hooks.js",
+    "uninstall-hooks": "node scripts/install-hooks.js --uninstall",
+    "icon": "node scripts/make-icon.js",
+    "dist": "npm run icon && electron-builder --mac",
+    "install-app": "npm run dist && rm -rf \"$HOME/Applications/AI Office.app\" && mkdir -p \"$HOME/Applications\" && cp -R dist/mac*/\"AI Office.app\" \"$HOME/Applications/\""
+  },
+  "devDependencies": {
+    "electron": "^45.2.2",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "local.ai-office",
+    "productName": "AI Office",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**",
+      "renderer/**",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dir"
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.png",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "extendInfo": {
+        "NSAppleEventsUsageDescription": "AI Office přepíná do terminálu, ve kterém běží vybraný agent."
+      }
+    }
+  }
+}

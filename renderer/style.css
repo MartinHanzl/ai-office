@@ -1,0 +1,87 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #1a1c2c;
+  color: #f4f4f4;
+  font: 12px Menlo, Monaco, monospace;
+  user-select: none;
+}
+#app { display: flex; flex-direction: column; height: 100%; }
+#scene { flex: 1; width: 100%; min-height: 0; display: block; }
+#bar {
+  height: 28px;
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  background: #14162a;
+  border-top: 1px solid #333c57;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+}
+#bar b { color: #f4f4f4; font-weight: normal; }
+#bar .dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; background: #38b764; }
+#bar .dot.off { background: #566c86; }
+#bar .warn { color: #ef7d57; }
+#stats {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(8, 10, 24, 0.7);
+}
+#stats[hidden] { display: none; }
+#stats .panel {
+  width: min(960px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 16px 20px;
+  background: #1a1c2c;
+  border: 2px solid #566c86;
+  box-shadow: 6px 6px 0 #0d0f1c;
+  user-select: text;
+}
+#stats .head { display: flex; justify-content: space-between; align-items: center; }
+#stats h2 { margin: 0; font-size: 16px; font-weight: normal; color: #f4d35e; }
+#stats button {
+  font: inherit;
+  color: #f4f4f4;
+  background: #333c57;
+  border: 1px solid #566c86;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+#stats button.active { background: #41a6f6; color: #1a1c2c; }
+#stats .close { padding: 2px 8px; }
+#stats .tabs { display: flex; gap: 6px; margin: 12px 0; }
+#stats .award { padding: 8px 10px; margin-bottom: 12px; background: #2c2a1a; border: 1px solid #c8a24a; color: #f4d35e; }
+#stats table { width: 100%; border-collapse: collapse; }
+#stats th { text-align: left; color: #94a3b8; font-weight: normal; border-bottom: 1px solid #333c57; padding: 6px; }
+#stats td { padding: 6px; border-bottom: 1px solid #262b44; vertical-align: top; }
+#stats td.num { text-align: right; white-space: nowrap; }
+#stats td.tools { color: #94a3b8; }
+#stats tr.sum td { color: #f4d35e; border-bottom: none; }
+#stats .title { color: #73eff7; }
+#stats .xp { width: 120px; height: 4px; margin-top: 4px; background: #333c57; }
+#stats .xp div { height: 100%; background: #a7f070; }
+#stats .empty, #stats .hint { color: #94a3b8; }
+#stats .hint { margin: 12px 0 0; font-size: 11px; }
+#tooltip {
+  position: fixed;
+  z-index: 5;
+  pointer-events: none;
+  max-width: 380px;
+  padding: 6px 8px;
+  background: #14162aee;
+  border: 1px solid #566c86;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
