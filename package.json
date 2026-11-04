@@ -13,7 +13,7 @@
     "dist": "npm run icon && electron-builder --mac",
     "install-app": "npm run dist && rm -rf \"$HOME/Applications/AI Office.app\" && mkdir -p \"$HOME/Applications\" && cp -R dist/mac*/\"AI Office.app\" \"$HOME/Applications/\"",
     "test": "npm run -s lint && npm run -s test:unit && npm run -s test:smoke",
-    "test:unit": "node --test \"test/*.test.js\"",
+    "test:unit": "node --test \"test/*.test.js\" \"test/*.test.mjs\"",
     "test:smoke": "node scripts/smoke.js",
     "lint": "eslint ."
   },

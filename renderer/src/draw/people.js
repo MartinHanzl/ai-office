@@ -1,6 +1,7 @@
 /** Drawing employees and interns according to their state. */
 import { now } from '../core/util.js';
-import { chairBack, figure } from './figure.js';
+import { chairBack, figure as drawFigure } from './figure.js';
+import { EMOTIONS, moodSpeed } from '../entities/mood.js';
 import { WORKING } from '../entities/activity.js';
 
 export const SEATED_ARMS = {
@@ -11,6 +12,11 @@ export const SEATED_ARMS = {
 
 export function drawWorker(w, t) {
   const look = w.look;
+  // mood: facial expression (front view) and animation tempo
+  const emotion = w.mood.current;
+  const mood = { face: EMOTIONS[emotion].face, speed: moodSpeed(w) };
+  const figure = (x, y, lk, pose, k) => drawFigure(x, y, lk, { ...mood, ...pose }, k);
+  const celebrating = (emotion === 'happy' || emotion === 'proud') && w.mood.flash?.until > now();
   if (w.walking) {
     figure(w.x, w.y, look, { view: w.facing === 'up' ? 'back' : 'front', walking: w.step, arms: 'down', t });
     return;
@@ -22,9 +28,13 @@ export function drawWorker(w, t) {
   }
   if (w.place === 'desk' && w.seat.desk) {
     const animate = ['typing', 'terminal', 'planning'].includes(w.activity);
-    figure(w.x, w.y, look, {
-      view: 'back', seated: true, arms: oops && !w.waiting ? 'facepalm' : SEATED_ARMS[w.activity] ?? 'down', animate, t,
-      headDrop: w.activity === 'sleeping' ? 2 : 0,
+    const arms = oops && !w.waiting ? 'facepalm'
+      : celebrating && !w.waiting ? 'cheer'
+        : SEATED_ARMS[w.activity] ?? 'down';
+    const shake = emotion === 'frustrated' && animate ? Math.sin(t * 25) * 0.4 : 0;
+    figure(w.x + shake, w.y, look, {
+      view: 'back', seated: true, arms, animate, t,
+      headDrop: w.activity === 'sleeping' ? 2 : emotion === 'tired' ? 1 : 0,
     });
     chairBack(w.x, w.y, true);
     return;
@@ -48,6 +58,9 @@ export function drawWorker(w, t) {
         figure(w.x, w.y + laugh, look, { view: 'back', seated: true, arms: 'down', t });
         return;
       }
+      case 'window':
+        figure(w.x, w.y, look, { view: 'back', arms: 'down', t });
+        return;
       case 'chat':
         figure(w.x, w.y, look, { view: 'front', arms: w.talkingUntil > now() ? 'talk' : 'down', t });
         return;
@@ -61,8 +74,8 @@ export function drawWorker(w, t) {
 
 export function drawIntern(i, t) {
   if (i.walking) {
-    figure(i.x, i.y, i.look, { view: i.facing === 'up' ? 'back' : 'front', walking: i.step, arms: 'down', t }, 0.8);
+    drawFigure(i.x, i.y, i.look, { view: i.facing === 'up' ? 'back' : 'front', walking: i.step, arms: 'down', t }, 0.8);
     return;
   }
-  figure(i.x, i.y, i.look, { view: 'front', arms: 'laptop', animate: true, t: t + i.slot }, 0.8);
+  drawFigure(i.x, i.y, i.look, { view: 'front', arms: 'laptop', animate: true, t: t + i.slot }, 0.8);
 }

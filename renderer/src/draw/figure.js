@@ -49,9 +49,12 @@ export function figure(x, y, look, pose, k = 1) {
     r(-4, -21 + hd, 1, 2, look.hair);
     r(3, -21 + hd, 1, 2, look.hair);
     const blink = (t + (look.skin.charCodeAt(2) % 7)) % 4 < 0.12;
-    r(-2, -19 + hd, 1, blink ? 0.3 : 1, C.ink);
-    r(1, -19 + hd, 1, blink ? 0.3 : 1, C.ink);
-    r(-1, -17 + hd, 2, 0.5, shade(look.skin, -0.35));
+    const face = pose.face ?? 'neutral';
+    const eyeH = blink ? 0.3 : face === 'tired' || face === 'flat' ? 0.5 : 1;
+    const eyeY = -19 + hd + (eyeH < 1 && !blink ? 0.5 : 0);
+    r(-2, eyeY, 1, eyeH, C.ink);
+    r(1, eyeY, 1, eyeH, C.ink);
+    drawFace(r, face, hd, look, t);
     if (look.glasses) {
       r(-3.2, -20 + hd, 3, 2.4, C.ink);
       r(0.2, -20 + hd, 3, 2.4, C.ink);
@@ -72,7 +75,7 @@ export function figure(x, y, look, pose, k = 1) {
   }
 
   // arms
-  const tap = pose.animate ? Math.floor(t * 10) % 2 : 0;
+  const tap = pose.animate ? Math.floor(t * 10 * (pose.speed ?? 1)) % 2 : 0;
   switch (pose.arms) {
     case 'type':
       r(-7, -20, 2, 6, sleeve);
@@ -106,6 +109,14 @@ export function figure(x, y, look, pose, k = 1) {
       r(-7, -21, 2, 6, sleeve);
       r(-6, -23, 2, 4, C.ink);
       break;
+    case 'cheer': {
+      const up = Math.floor(t * 4) % 2;
+      r(-7, -28 - up, 2, 13 + up, sleeve);
+      r(5, -28 - up, 2, 13 + up, sleeve);
+      r(-7, -30 - up, 2, 2, look.skin);
+      r(5, -30 - up, 2, 2, look.skin);
+      break;
+    }
     case 'rest':
       r(-7, -17, 14, 2, sleeve);
       break;
@@ -165,4 +176,42 @@ export function chairBack(x, y, occupied) {
   R(x - 7, y - 10 + dy, 14, 1, shade(C.chair, 0.2));
   R(x - 1, y - 3 + dy, 2, 3, C.chairDark);
   R(x - 5, y + dy, 10, 1, C.chairDark);
+}
+
+/** Mouth and brows for the front view. r() is the figure-local rect helper. */
+function drawFace(r, face, hd, look, t) {
+  const lip = shade(look.skin, -0.35);
+  switch (face) {
+    case 'smile':
+      r(-1, -16.8 + hd, 2, 0.5, lip);
+      r(-1.6, -17.3 + hd, 0.6, 0.6, lip);
+      r(1, -17.3 + hd, 0.6, 0.6, lip);
+      break;
+    case 'sad':
+    case 'worried':
+      r(-1, -17.3 + hd, 2, 0.5, lip);
+      r(-1.6, -16.8 + hd, 0.6, 0.6, lip);
+      r(1, -16.8 + hd, 0.6, 0.6, lip);
+      if (face === 'worried') {
+        r(-2.6, -20.4 + hd, 1.4, 0.5, look.hair);
+        r(1.2, -20.4 + hd, 1.4, 0.5, look.hair);
+      }
+      break;
+    case 'angry':
+      r(-1, -17 + hd, 2, 0.5, lip);
+      r(-2.6, -20.8 + hd, 0.8, 0.5, look.hair);
+      r(-1.9, -20.4 + hd, 0.8, 0.5, look.hair);
+      r(1.1, -20.4 + hd, 0.8, 0.5, look.hair);
+      r(1.8, -20.8 + hd, 0.8, 0.5, look.hair);
+      break;
+    case 'tired': {
+      const yawn = Math.floor(t / 3) % 3 === 0;
+      r(-0.7, -17.3 + hd, 1.4, yawn ? 1.2 : 0.5, yawn ? C.ink : lip);
+      r(-2.2, -18.2 + hd, 1.2, 0.4, shade(look.skin, -0.2));
+      r(0.9, -18.2 + hd, 1.2, 0.4, shade(look.skin, -0.2));
+      break;
+    }
+    default:
+      r(-1, -17 + hd, 2, 0.5, lip);
+  }
 }

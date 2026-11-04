@@ -57,6 +57,11 @@ s časem resetu ve spodní liště. Data přichází jen u předplatného Pro/Ma
 - **Chyba nástroje** → zaměstnanec se chytá za hlavu a z monitoru se kouří. **Došly tokeny** (`StopFailure`
   rate_limit nebo 0 % v limitech) → stávka s transparenty až do resetu.
 - **Kontext** ze status line: čím plnější, tím víc hrnků na stole, od 75 % se potí. Cena session = výplata.
+- **Emoce**: každý má náladu (pohoda a energie), kterou posouvají události. Opakované chyby → 💢 frustrace,
+  dlouhé čekání na povolení → ⌛ netrpělivost, plný kontext → 💦 stres, dlouhá práce nebo noc → 💤 únava,
+  commit nebo hotový dlouhý úkol → ♪ radost (ruce nahoru), povýšení → ⭐ hrdost, 3+ stážisti → 🌀 zahlcení.
+  Je to vidět na výrazu obličeje, ikonce u hlavy, tempu psaní a v hláškách. Nálada řídí i pauzy
+  (unavený jde na kafe, frustrovaný kouká z okna) a kdo spolu často klábosí, stanou se kamarády.
 - **Život**: kočka Bajt (dá se pohladit), robotický vysavač v prázdné kanceláři, konfety při `git commit`/`push`,
   večer a v noci zhasnuto a svítí jen stoly, lampa a televize.
 
@@ -92,7 +97,7 @@ renderer/src/           renderer (ES moduly, bez buildu)
   state.js              sdílený stav (workers, limity, nastavení)
   core/                 canvas a kreslicí primitiva, utility, paleta
   world/layout.js       půdorys kanceláře, místa a trasy
-  entities/             zaměstnanci, stážisti, vzhled, flákání a rozhovory
+  entities/             zaměstnanci, stážisti, vzhled, nálady (mood.js), flákání a rozhovory
   draw/                 postavy, monitory, nábytek, místnost, bubliny
   life/                 kočka, vysavač, konfety, noční osvětlení
   ui/                   spodní lišta, tooltip a klikání, statistiky

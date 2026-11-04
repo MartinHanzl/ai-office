@@ -4,6 +4,7 @@ import { canvas, toLogical } from '../core/canvas.js';
 import { catHit, petCat } from '../life/cat.js';
 import { state, workers } from '../state.js';
 import { openStats } from './stats.js';
+import { EMOTIONS } from '../entities/mood.js';
 
 export const tooltip = document.getElementById('tooltip');
 
@@ -22,6 +23,13 @@ export function hitTest(lx, ly) {
 }
 
 
+const pct = (v) => Math.round(((v + 1) / 2) * 100);
+
+function moodLine(w) {
+  const m = w.mood;
+  return `nálada: ${EMOTIONS[m.current].icon ?? '🙂'} ${EMOTIONS[m.current].label} · pohoda ${pct(m.valence)} % · energie ${pct(m.energy)} %`;
+}
+
 export function workerInfo(w) {
   const interns = w.interns.filter((i) => !i.leaving).length + w.extraInterns;
   const p = w.profile;
@@ -34,6 +42,7 @@ export function workerInfo(w) {
     xp,
     w.cwd,
     `stav: ${state}`,
+    moodLine(w),
     w.context != null ? `kontext: ${w.context} %${w.cost != null ? ` · výplata: $${w.cost.toFixed(2)}` : ''}` : '',
     w.lastText ? `poslední: ${w.lastText}` : '',
     interns ? `stážisti: ${interns}` : '',

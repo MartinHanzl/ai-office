@@ -4,11 +4,18 @@ import { now, rand, randItem } from '../core/util.js';
 import { strikeActive } from '../limits.js';
 import { convos, workers } from '../state.js';
 import { CHAT_PAIRS } from '../world/layout.js';
+import { moodEvent, moodIdleWeights } from './mood.js';
+
+/** How many times two employees (by project key) chatted – two chats make them friends. */
+const chatCounts = new Map();
+const pairKey = (a, b) => [a.key, b.key].sort().join('|');
+export const areFriends = (a, b) => (chatCounts.get(pairKey(a, b)) ?? 0) >= 2;
 
 export class Convo {
   constructor(a, b, pair) {
     this.a = a;
     this.b = b;
+    this.friends = areFriends(a, b);
     this.dialog = randItem(DIALOGS);
     this.idx = 0;
     this.nextAt = 0;
@@ -45,6 +52,9 @@ export class Convo {
   finish() {
     this.ended = true;
     convos.delete(this);
+    const key = pairKey(this.a, this.b);
+    chatCounts.set(key, (chatCounts.get(key) ?? 0) + 1);
+    if (this.friends) for (const w of [this.a, this.b]) moodEvent(w, 'friendChat');
     for (const w of [this.a, this.b]) {
       if (w.idle?.convo !== this) continue;
       w.stopIdle();
@@ -69,19 +79,24 @@ export class Convo {
 
 export function findPartner(w) {
   const candidates = [...workers.values()].filter((o) => o !== w && o.isFree && !o.idle?.convo && !o.walking);
-  return candidates.length ? randItem(candidates) : null;
+  if (!candidates.length) return null;
+  // friends are three times as likely to be picked
+  const pool = candidates.flatMap((o) => (areFriends(w, o) ? [o, o, o] : [o]));
+  return randItem(pool);
 }
 
 
 export function pickIdle(w) {
   const freeFor = now() - (w.freeSince ?? now());
+  const mood = moodIdleWeights(w);
   const options = [
-    { kind: 'chat', weight: 3 },
-    { kind: 'coffee', weight: 2, secs: [20, 40] },
-    { kind: 'sofa', weight: 2, secs: [30, 90] },
+    { kind: 'chat', weight: 3 * mood.chat },
+    { kind: 'coffee', weight: 2 * mood.coffee, secs: [20, 40] },
+    { kind: 'sofa', weight: 2 * mood.sofa, secs: [30, 90] },
     { kind: 'browse', weight: 3, secs: [30, 90] },
     { kind: 'sit', weight: 1, secs: [10, 30] },
-    { kind: 'nap', weight: freeFor > 5 * 60_000 ? 3 : 0, secs: [60, 180] },
+    { kind: 'window', weight: 0.5 * mood.window, secs: [15, 40] },
+    { kind: 'nap', weight: freeFor > 5 * 60_000 || w.mood.energy < -0.4 ? 3 * mood.nap : 0, secs: [60, 180] },
   ];
   if (strikeActive()) {
     // on strike nobody even pretends to work: no browsing at the desk

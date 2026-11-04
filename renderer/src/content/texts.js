@@ -8,6 +8,22 @@ export const IDLE_LINES = {
   sofa: ['Góól! ⚽', 'Haha 😂', 'Přepni to…', 'Ještě jeden díl', 'Psst!', 'Tohle už jsem viděl'],
   browse: ['lol 😂', 'Kočičí videa 🐱', 'Hmm…', 'To je dobrý', 'Jen jeden článek…'],
   nap: ['Z z z…'],
+  window: ['Musím si vyčistit hlavu…', 'Pěkný výhled.', 'Nádech… výdech…'],
+};
+
+/** Said when an employee switches into a mood (rate-limited, see entities/mood.js). */
+export const MOOD_LINES = {
+  frustrated: ['Proč to nejde?!', 'Zase chyba…', 'Grr 😤', 'To snad není možný'],
+  stressed: ['Moc věcí najednou…', 'Kontext mi přetéká 😰', 'Hlavně klid…'],
+  impatient: ['Haló? Potřebuju povolení…', 'Čekám a čekám ⌛', 'Šéfe? Šéééfe!'],
+  tired: ['Potřebuju kafe…', '*zív*', 'Už nemůžu…'],
+  bored: ['Nuda…', 'Nemáte pro mě něco?', 'Tak co dneska?'],
+  happy: ['Jde to jak po másle!', 'Paráda ✨', 'Dneska mi to jde!'],
+  content: ['S tebou je sranda 😄', 'Jsi dobrej parťák'],
+  proud: ['Kdo je tady šéf? 😎', 'Zasloužil jsem si to.'],
+  worried: ['Docházejí tokeny…', 'Snad to stihnu 😟'],
+  overwhelmed: ['Tolik stážistů…', 'Pomoc 🌀', 'Kdo z vás co dělá?'],
+  sad: ['Nic se nedaří ☁', 'Dneska to není ono…'],
 };
 
 
@@ -37,7 +53,7 @@ export const ACTIVITY_CZ = {
   surfing: 'surfuje po internetu',
 };
 
-export const IDLE_CZ = { coffee: 'pije kafe', sofa: 'kouká na televizi', chat: 'klábosí', browse: 'surfuje po internetu', nap: 'dřímá', sit: 'odpočívá' };
+export const IDLE_CZ = { coffee: 'pije kafe', sofa: 'kouká na televizi', chat: 'klábosí', browse: 'surfuje po internetu', nap: 'dřímá', sit: 'odpočívá', window: 'kouká z okna' };
 
 
 export const TOOL_CZ = {

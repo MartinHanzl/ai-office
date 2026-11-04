@@ -26,7 +26,10 @@ export const CHAT_PAIRS = [
   [{ x: 230, y: 166, lane: 166 }, { x: 245, y: 166, lane: 166 }], // lounge corner
 ].map((pair) => pair.map((spot) => ({ ...spot, owner: null })));
 
-export const IDLE_POOLS = { coffee: COFFEE, sofa: SOFA };
+/** In front of the windows – where frustrated employees go to clear their heads. */
+export const WINDOW_SPOTS = [{ x: 56, y: 50, lane: 50, owner: null }, { x: 112, y: 50, lane: 50, owner: null }];
+
+export const IDLE_POOLS = { coffee: COFFEE, sofa: SOFA, window: WINDOW_SPOTS };
 
 
 export function route(from, to) {

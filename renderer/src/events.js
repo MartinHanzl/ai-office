@@ -7,6 +7,7 @@ import { Worker } from './entities/worker.js';
 import { confetti } from './life/particles.js';
 import { triggerStrike } from './limits.js';
 import { bumpDone, workers } from './state.js';
+import { moodEvent } from './entities/mood.js';
 
 export function spawn(ev) {
   const w = new Worker(ev);
@@ -31,6 +32,7 @@ export function handle(ev) {
     if (lw) {
       lw.setProfile(ev.profile);
       lw.say(`⭐ Povýšení: ${ev.profile.title}!`, 5, 'ok');
+      moodEvent(lw, 'levelUp');
       confetti(lw.x, lw.y - 20, 50);
       fanfare();
     }
@@ -60,11 +62,13 @@ export function handle(ev) {
       w.lastText = `💥 ${ev.tool}: ${ev.text}`;
       w.work(activityFor(ev.tool));
       w.errorUntil = now() + 3500;
+      moodEvent(w, 'error');
       w.say(`💥 ${ev.text || ev.tool}`, 3.5, 'error');
       buzz();
       break;
     case 'failure':
       w.becomeFree(rand(3000, 6000));
+      moodEvent(w, 'failure');
       if (ev.limit) triggerStrike();
       else w.say(`⚠️ API: ${ev.text}`, 5, 'error');
       buzz();
@@ -94,11 +98,13 @@ export function handle(ev) {
       w.waiting = true;
       w.lastText = ev.text;
       w.say('Potřebuju povolení!', 3600, 'alert');
+      moodEvent(w, 'waiting');
       ding();
       break;
     case 'done':
       w.becomeFree(rand(4000, 8000));
       w.say('Hotovo ✓', 4, 'ok');
+      moodEvent(w, 'done', { workMs: ev.workMs });
       bumpDone();
       chime();
       break;
@@ -117,6 +123,7 @@ export function handle(ev) {
 /** git commit / push celebration: confetti and applause from colleagues with nothing to do. */
 export function celebrate(w, kind) {
   w.say(kind === 'push' ? '🚀 Push!' : '🎉 Commit!', 3, 'ok');
+  moodEvent(w, 'celebrate');
   confetti(w.x, w.y - 20, kind === 'push' ? 45 : 30);
   pop();
   let delay = 400;

@@ -5,6 +5,7 @@ import { now, rand, randItem } from '../core/util.js';
 import { FREE, WORKING } from './activity.js';
 import { pickIdle } from './idle.js';
 import { lookFor } from './look.js';
+import { createMood, updateMood } from './mood.js';
 import { Person } from './person.js';
 import { workers } from '../state.js';
 import { BOARD, DOOR, IDLE_POOLS, claimSeat, releaseSeat } from '../world/layout.js';
@@ -42,6 +43,7 @@ export class Worker extends Person {
     this.nextIdleAt = 0;    // when to pick the next behaviour
     this.freeSince = null;  // since when the agent has been waiting for the user
     this.talkingUntil = 0;
+    this.mood = createMood();
     this.leaving = false;
     this.gone = false;
   }
@@ -238,6 +240,7 @@ export class Worker extends Person {
       if (!this.waiting && WORKING.has(this.activity)) this.activity = 'thinking';
     }
     this.tickIdle(dt);
+    updateMood(this, dt);
     for (const intern of this.interns) intern.move(dt);
     this.interns = this.interns.filter((i) => !i.gone);
   }

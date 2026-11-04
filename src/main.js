@@ -124,6 +124,7 @@ function ingest(ev) {
   if (s) {
     ev.project = s.project;
     ev.profile = store.publicProfile(s.key);
+    if (ev.type === 'done') ev.workMs = result.workMs; // long tasks tire employees out (renderer mood)
   }
   broadcast('office:event', ev);
   if (s && result.promoted != null) {

@@ -5,6 +5,7 @@ import { clamp } from '../core/util.js';
 import { WORKING } from '../entities/activity.js';
 import { strikeActive } from '../limits.js';
 import { workers } from '../state.js';
+import { EMOTIONS, showEmote } from '../entities/mood.js';
 
 export const BUBBLE_STYLE = {
   info: { bg: C.white, fg: C.ink },
@@ -73,6 +74,13 @@ export function drawOverlay(t) {
       R(w.x + 0.5, w.y - 37, 14, 7, C.ink);
       R(w.x + 1, w.y - 36.5, 13, 6, C.white);
       text('STÁVKA', w.x + 7.5, w.y - 32.3, 2.3, C.red);
+    }
+
+    // mood emote next to the head (RPG style), bobbing gently
+    const emote = EMOTIONS[w.mood.current].icon;
+    if (emote && !w.walking && w.activity !== 'sleeping' && showEmote(w, t)) {
+      const bob = Math.sin(t * 3 + w.x) * 0.6;
+      text(emote, w.x + 6.5, w.y - 23.5 + bob, 4, emote === '♪' ? C.yellow : emote === '…' ? C.white : C.teal);
     }
 
     if (w.extraInterns > 0 && atDesk) text(`+${w.extraInterns} 🧑‍🎓`, w.x + 24, w.y - 2, 3.5, C.lime);
