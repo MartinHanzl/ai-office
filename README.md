@@ -69,3 +69,35 @@ Podle zátěže CPU se odhaduje, jestli pracují nebo mají volno. Konkrétní n
 
 - `AI_OFFICE_PORT` – port serveru (výchozí 4747), stejná proměnná platí pro hook
 - `AI_OFFICE_SCREENSHOT=/cesta.png npm start` – přehraje demo, uloží screenshot a skončí (pro vývoj)
+- `AI_OFFICE_DEMO=idle` – demo se čtyřmi nečinnými sessions (flákání, klábosení)
+- `AI_OFFICE_EVAL='…'` – JS spuštěný v rendereru 8 s po startu (při screenshotu); moduly jsou dostupné přes `window.__office`
+
+## Vývoj
+
+```bash
+npm test          # ESLint + jednotkové testy (node:test) + smoke test celé aplikace
+npm run lint
+npm run test:unit
+npm run test:smoke   # spustí appku s demem, vynutí stavy (noc, stávka, statistiky), selže při chybě v rendereru
+```
+
+```
+src/                    hlavní proces (CommonJS)
+  main.js               okna, tray, HTTP server, sessions, notifikace
+  hook-events.js        převod payloadů hooků na události kanceláře (čistá logika, testovaná)
+  store.js              profily zaměstnanců, XP, denní statistiky (office-data.json)
+  focus.js              přepnutí do terminálu podle TTY
+renderer/src/           renderer (ES moduly, bez buildu)
+  main.js               vstupní bod – IPC, obnova stavu, smyčka
+  state.js              sdílený stav (workers, limity, nastavení)
+  core/                 canvas a kreslicí primitiva, utility, paleta
+  world/layout.js       půdorys kanceláře, místa a trasy
+  entities/             zaměstnanci, stážisti, vzhled, flákání a rozhovory
+  draw/                 postavy, monitory, nábytek, místnost, bubliny
+  life/                 kočka, vysavač, konfety, noční osvětlení
+  ui/                   spodní lišta, tooltip a klikání, statistiky
+  content/texts.js      všechny české texty (hlášky, dialogy, popisky)
+  events.js             reakce na události z hlavního procesu
+hooks/                  skripty volané Claude Code (hook + status line)
+test/                   jednotkové testy
+```

@@ -1,0 +1,67 @@
+/** Frame loop: update and draw. */
+import { H, OX, OY, S, W, canvas, ctx } from './core/canvas.js';
+import { C } from './core/palette.js';
+import { now } from './core/util.js';
+import { chairBack } from './draw/figure.js';
+import { drawDesk, drawSofa } from './draw/furniture.js';
+import { drawEmptyOverlay, drawOverlay } from './draw/overlay.js';
+import { drawIntern, drawWorker } from './draw/people.js';
+import { drawRoom } from './draw/room.js';
+import { drawLifeOverlay, lifeItems, updateLife } from './life/index.js';
+import { drawLighting } from './life/lighting.js';
+import { drawParticles } from './life/particles.js';
+import { convos, workers } from './state.js';
+import { DESKS } from './world/layout.js';
+
+export function draw(t, dt) {
+  const date = new Date();
+  ctx.fillStyle = C.ink;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(OX, OY, W * S, H * S);
+  ctx.clip();
+
+  drawRoom(t, date);
+
+  // depth-sorted scene objects
+  const items = [];
+  for (const d of DESKS) {
+    items.push({ y: d.deskY + 17, draw: () => drawDesk(d, t) });
+    if (!d.owner || d.owner.place !== 'desk' || d.owner.walking) {
+      items.push({ y: d.seatY - 0.1, draw: () => chairBack(d.cx, d.seatY, false) });
+    }
+  }
+  items.push({ y: 147, draw: drawSofa });
+  for (const w of workers.values()) {
+    if (!w.gone) items.push({ y: w.y, draw: () => drawWorker(w, t) });
+    for (const i of w.interns) items.push({ y: i.y + 0.2, draw: () => drawIntern(i, t) });
+  }
+  items.push(...lifeItems(t));
+  items.sort((a, b) => a.y - b.y);
+  for (const item of items) item.draw();
+
+  drawLighting(t, date);
+  drawParticles();
+  drawOverlay(t);
+  drawLifeOverlay(t);
+  drawEmptyOverlay(dt);
+  ctx.restore();
+}
+
+
+export let last = now();
+
+export function frame() {
+  const ts = now();
+  const dt = Math.min(0.1, (ts - last) / 1000);
+  last = ts;
+  for (const convo of convos) convo.tick(ts);
+  updateLife(dt);
+  for (const [id, w] of workers) {
+    w.update(dt);
+    if (w.gone && w.interns.length === 0) workers.delete(id);
+  }
+  draw(ts / 1000, dt);
+  requestAnimationFrame(frame);
+}

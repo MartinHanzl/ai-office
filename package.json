@@ -11,11 +11,17 @@
     "uninstall-hooks": "node scripts/install-hooks.js --uninstall",
     "icon": "node scripts/make-icon.js",
     "dist": "npm run icon && electron-builder --mac",
-    "install-app": "npm run dist && rm -rf \"$HOME/Applications/AI Office.app\" && mkdir -p \"$HOME/Applications\" && cp -R dist/mac*/\"AI Office.app\" \"$HOME/Applications/\""
+    "install-app": "npm run dist && rm -rf \"$HOME/Applications/AI Office.app\" && mkdir -p \"$HOME/Applications\" && cp -R dist/mac*/\"AI Office.app\" \"$HOME/Applications/\"",
+    "test": "npm run -s lint && npm run -s test:unit && npm run -s test:smoke",
+    "test:unit": "node --test \"test/*.test.js\"",
+    "test:smoke": "node scripts/smoke.js",
+    "lint": "eslint ."
   },
   "devDependencies": {
     "electron": "^45.2.2",
-    "electron-builder": "^26.18.0"
+    "electron-builder": "^26.18.0",
+    "eslint": "^9.39.5",
+    "globals": "^15.15.0"
   },
   "build": {
     "appId": "local.ai-office",

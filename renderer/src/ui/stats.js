@@ -1,49 +1,54 @@
-'use strict';
-/* AI Office – statistics panel (today / last 7 days) and employee of the week. */
+/** Statistics panel (today / last 7 days) and employee of the week. */
+import { TOOL_CZ } from '../content/texts.js';
+import { state } from '../state.js';
+import { tooltip } from './tooltip.js';
 
-const statsEl = document.getElementById('stats');
-let statsTab = 'today';
-let statsData = null;
+export const statsEl = document.getElementById('stats');
 
-const TOOL_CZ = {
-  terminal: '⌨️ terminál', reading: '📖 čtení', editing: '✏️ psaní', web: '🌐 web',
-  mcp: '☎️ MCP', planning: '📋 plán', agents: '🧑‍🎓 agenti', other: '🔧 ostatní',
-};
+export let statsTab = 'today';
 
-function el(tag, cls, content) {
+export let statsData = null;
+
+
+export function el(tag, cls, content) {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
   if (content != null) node.textContent = content;
   return node;
 }
 
-const fmtMinutes = (ms) => {
+
+export const fmtMinutes = (ms) => {
   if (ms > 0 && ms < 60_000) return '< 1 min';
   const m = Math.round(ms / 60_000);
   return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
 };
 
-async function refreshStats() {
+
+export async function refreshStats() {
   if (!window.office?.stats) return;
   try {
     statsData = await window.office.stats();
-    employeeOfWeek = statsData.employeeOfWeek;
+    state.employeeOfWeek = statsData.employeeOfWeek;
   } catch { /* main process not ready */ }
   if (!statsEl.hidden) renderStats();
 }
 
-function openStats() {
+
+export function openStats() {
   statsEl.hidden = false;
   tooltip.hidden = true;
   renderStats();
   refreshStats();
 }
 
-function closeStats() {
+
+export function closeStats() {
   statsEl.hidden = true;
 }
 
-function renderStats() {
+
+export function renderStats() {
   const panel = el('div', 'panel');
   const head = el('div', 'head');
   head.append(el('h2', null, '📊 Statistiky kanceláře'));
@@ -109,9 +114,11 @@ function renderStats() {
   statsEl.replaceChildren(panel);
 }
 
+
 statsEl.addEventListener('click', (e) => {
   if (e.target === statsEl) closeStats();
 });
+
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeStats();
 });
