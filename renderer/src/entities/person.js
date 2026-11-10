@@ -1,13 +1,16 @@
 /** Base walking character (path following, speech bubbles). */
-import { now } from '../core/util.js';
+import { now, rand } from '../core/util.js';
 import { DOOR, SPEED, route } from '../world/layout.js';
+
+/** Ghosts float slowly and straight through walls and furniture. */
+export const GHOST_SPEED = 26;
 
 export class Person {
   constructor(look) {
     this.look = look;
     this.x = DOOR.x;
     this.y = DOOR.y - 6;
-    this.lane = DOOR.lane;
+    this.speed = SPEED * rand(0.85, 1.15); // everyone walks at their own pace
     this.path = [];
     this.facing = 'down';
     this.step = 0;
@@ -20,16 +23,13 @@ export class Person {
   }
 
   walkTo(loc, onArrive) {
-    const from = { x: this.x, lane: this.walking ? this.y : this.lane };
-    this.path = route(from, loc);
-    this.lane = loc.lane;
+    this.path = route({ x: this.x, y: this.y }, loc);
     this.onArrive = onArrive ?? null;
   }
 
   placeAt(loc) {
     this.x = loc.x;
     this.y = loc.y;
-    this.lane = loc.lane;
     this.path = [];
   }
 
@@ -39,7 +39,7 @@ export class Person {
   }
 
   move(dt) {
-    let budget = SPEED * dt;
+    let budget = (this.ghost ? GHOST_SPEED : this.speed) * dt;
     while (budget > 0 && this.path.length) {
       const p = this.path[0];
       const dx = p.x - this.x;

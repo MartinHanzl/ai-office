@@ -178,5 +178,6 @@ export function moodIdleWeights(w) {
     chat: m.energy > 0.3 && m.valence > 0 ? 2 : 1,
     window: e === 'frustrated' || e === 'sad' || m.valence < -0.2 ? 6 : 1,
     sofa: e === 'tired' ? 2 : 1,
+    stroll: e === 'bored' || e === 'impatient' ? 3 : m.energy < -0.4 ? 0.3 : 1,
   };
 }

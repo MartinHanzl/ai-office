@@ -56,7 +56,7 @@ export function drawOverlay(t) {
     const onSofa = w.idle?.kind === 'sofa' || (w.seat.sofa && w.place === 'desk');
     if (!w.walking && !onSofa) {
       const project = w.source !== 'Claude' && !w.project.includes('·') ? `${w.source} · ${w.project}` : w.project;
-      const label = w.profile ? `${w.displayName} · ${project}` : project;
+      const label = w.name ? `${w.name} · ${project}` : project;
       const convo = w.idle?.convo;
       nameTag(w.x, w.y + (convo && convo.b === w ? 7.5 : 2.5), label, w.look.shirt);
     }
@@ -78,7 +78,7 @@ export function drawOverlay(t) {
 
     // mood emote next to the head (RPG style), bobbing gently
     const emote = EMOTIONS[w.mood.current].icon;
-    if (emote && !w.walking && w.activity !== 'sleeping' && showEmote(w, t)) {
+    if (emote && !w.ghost && !w.walking && w.activity !== 'sleeping' && showEmote(w, t)) {
       const bob = Math.sin(t * 3 + w.x) * 0.6;
       text(emote, w.x + 6.5, w.y - 23.5 + bob, 4, emote === '♪' ? C.yellow : emote === '…' ? C.white : C.teal);
     }

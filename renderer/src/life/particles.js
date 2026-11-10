@@ -25,6 +25,17 @@ export function hearts(x, y, n = 4) {
 }
 
 
+/** Puff of mist when an employee turns into a ghost or back. */
+export function puff(x, y, n = 14) {
+  for (let i = 0; i < n; i++) {
+    particles.push({
+      x: x + rand(-5, 5), y: y + rand(-16, 0), vx: rand(-12, 12), vy: rand(-10, 2),
+      color: randItem(['#f4f4f4', '#c7cfdd', '#73eff7']), life: rand(0.6, 1.2), size: rand(1, 2.2), float: true,
+    });
+  }
+}
+
+
 export function updateParticles(dt) {
   for (const p of particles) {
     p.life -= dt;

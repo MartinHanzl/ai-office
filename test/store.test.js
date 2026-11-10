@@ -4,16 +4,25 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { Store, LEVELS } = require('../src/store');
+const { Store, LEVELS, NAMES, pickName } = require('../src/store');
 
 const tmpStore = () => new Store(fs.mkdtempSync(path.join(os.tmpdir(), 'ai-office-test-')));
 
-test('profiles get stable, unique names', () => {
+test('project profiles carry no employee name', () => {
   const store = tmpStore();
   const a = store.profile('/p/eshop', 'eshop');
-  const b = store.profile('/p/api', 'api');
-  assert.equal(store.profile('/p/eshop', 'eshop').name, a.name);
-  assert.notEqual(a.name, b.name);
+  assert.equal(store.profile('/p/eshop', 'eshop'), a);
+  assert.equal(a.name, undefined);
+  assert.equal(store.publicProfile('/p/eshop').name, undefined);
+});
+
+test('random names avoid names already in the office', () => {
+  const used = new Set(NAMES.slice(1));
+  assert.equal(pickName(used), NAMES[0]);
+  const all = new Set(NAMES);
+  const name = pickName(all, () => 0);
+  assert.equal(name, `${NAMES[0]} 2`);
+  assert.equal(pickName(new Set([...all, name]), () => 0), `${NAMES[0]} 3`);
 });
 
 test('XP and promotion', () => {
@@ -27,7 +36,7 @@ test('XP and promotion', () => {
   assert.equal(p.nextXp, LEVELS[2].xp);
 });
 
-test('daily stats and employee of the week', () => {
+test('daily stats and project of the week', () => {
   const store = tmpStore();
   store.profile('/p/a', 'a');
   store.profile('/p/b', 'b');
@@ -38,7 +47,7 @@ test('daily stats and employee of the week', () => {
   store.recordTool('/p/b', 'editing');
   const stats = store.stats();
   assert.equal(stats.today.length, 2);
-  assert.equal(stats.employeeOfWeek.key, '/p/b');
+  assert.equal(stats.projectOfWeek.key, '/p/b');
   const b = stats.today.find((r) => r.key === '/p/b');
   assert.deepEqual([b.done, b.workMs, b.cost, b.tools.editing], [2, 60_000, 1.25, 1]);
 });

@@ -1,26 +1,27 @@
 /** Employees (agent sessions) and interns (subagents). */
-import { IDLE_LINES } from '../content/texts.js';
+import { GHOST_LINES, IDLE_LINES } from '../content/texts.js';
 import { C } from '../core/palette.js';
-import { now, rand, randItem } from '../core/util.js';
+import { clamp, now, rand, randItem } from '../core/util.js';
+import { strikeActive } from '../limits.js';
+import { puff } from '../life/particles.js';
 import { FREE, WORKING } from './activity.js';
 import { pickIdle } from './idle.js';
 import { lookFor } from './look.js';
 import { createMood, updateMood } from './mood.js';
 import { Person } from './person.js';
 import { workers } from '../state.js';
-import { BOARD, DOOR, IDLE_POOLS, claimSeat, releaseSeat } from '../world/layout.js';
+import { BOARD, DOOR, IDLE_POOLS, claimSeat, internSpot, randomFloorPoint, releaseSeat } from '../world/layout.js';
+
+/** After this long without work (terminal still open) an employee turns into a ghost. */
+export const GHOST_AFTER = 5 * 60_000;
 
 export class Worker extends Person {
   constructor(ev) {
     const profile = ev.profile ?? null;
-    const key = profile?.key ?? ev.sessionId;
-    // A second session in the same project is a colleague with the same name but a different look.
-    const twin = [...workers.values()].filter((o) => o.key === key && !o.gone).length;
-    const lookKey = twin ? `${key}#${twin}` : key;
-    super(lookFor(lookKey, profile?.level ?? 0));
-    this.key = key;
-    this.lookKey = lookKey;
-    this.twin = twin;
+    // Every session is a random employee: name from main, look from the session id.
+    super(lookFor(ev.sessionId, profile?.level ?? 0));
+    this.key = profile?.key ?? ev.sessionId;
+    this.name = ev.name ?? null;
     this.profile = profile;
     this.inPlan = ev.mode === 'plan';
     this.boardSpot = null;
@@ -44,6 +45,8 @@ export class Worker extends Person {
     this.freeSince = null;  // since when the agent has been waiting for the user
     this.talkingUntil = 0;
     this.mood = createMood();
+    this.ghost = false;
+    this.ghostPause = 0;   // ghost: when to float on
     this.leaving = false;
     this.gone = false;
   }
@@ -59,15 +62,14 @@ export class Worker extends Person {
   }
 
   get displayName() {
-    if (!this.profile) return this.project;
-    return this.twin ? `${this.profile.name} ${this.twin + 1}` : this.profile.name;
+    return this.name ?? this.project;
   }
 
   setProfile(profile) {
     if (!profile) return;
     const oldLevel = this.profile?.level;
     this.profile = profile;
-    if (oldLevel !== profile.level) this.look = lookFor(this.lookKey, profile.level);
+    if (oldLevel !== profile.level) this.look = lookFor(this.id, profile.level);
   }
 
   setMode(mode) {
@@ -117,6 +119,7 @@ export class Worker extends Person {
 
   work(activity, label, secs = 3, kind = 'info') {
     if (this.leaving) return;
+    this.unGhost();
     this.stopIdle();
     this.freeSince = null;
     this.nextIdleAt = 0;
@@ -148,7 +151,16 @@ export class Worker extends Person {
       this.goDesk();
       return true;
     }
-    const target = spot ?? IDLE_POOLS[kind]?.find((s) => !s.owner);
+    if (kind === 'stroll') {
+      this.releaseBoard();
+      this.activity = 'idle';
+      this.idle = { kind, until, arrived: false, pauseUntil: 0 };
+      this.place = 'spot';
+      this.strollOn();
+      return true;
+    }
+    const free = IDLE_POOLS[kind]?.filter((s) => !s.owner) ?? [];
+    const target = spot ?? (free.length ? randItem(free) : null);
     if (!target) return false;
     this.releaseBoard();
     target.owner = this;
@@ -164,6 +176,21 @@ export class Worker extends Person {
     return true;
   }
 
+  /** Stroll: walk to a random spot in the open areas, look around for a moment, repeat. */
+  strollOn() {
+    const p = randomFloorPoint();
+    if (!p) {
+      this.stopIdle();
+      return;
+    }
+    this.idle.arrived = false;
+    this.walkTo(p, () => {
+      if (this.idle?.kind !== 'stroll') return;
+      this.idle.arrived = true;
+      this.idle.pauseUntil = now() + rand(1500, 5000);
+    });
+  }
+
   stopIdle() {
     const idle = this.idle;
     if (!idle) return;
@@ -176,11 +203,24 @@ export class Worker extends Person {
   tickIdle(dt) {
     const t = now();
     if (!this.isFree) return;
+    if (this.ghost) {
+      this.tickGhost(t);
+      return;
+    }
+    // long without work, but the session is still open → ghost (not while picketing or mid-chat)
+    if (this.freeSince && t - this.freeSince >= GHOST_AFTER && !strikeActive() && !this.idle?.convo) {
+      this.becomeGhost();
+      return;
+    }
     if (this.idle) {
       const { kind, until, convo, arrived } = this.idle;
       if (!convo && t >= until) {
         this.stopIdle();
         this.nextIdleAt = t + rand(1500, 5000);
+        return;
+      }
+      if (kind === 'stroll' && arrived && !this.walking && t >= this.idle.pauseUntil) {
+        this.strollOn();
         return;
       }
       if (arrived && !this.walking && !this.bubble && IDLE_LINES[kind] && Math.random() < dt / 18) {
@@ -193,6 +233,46 @@ export class Worker extends Person {
       this.nextIdleAt = 0;
       pickIdle(this);
     }
+  }
+
+  // ---- ghost
+
+  becomeGhost() {
+    this.stopIdle();
+    this.releaseBoard();
+    this.ghost = true;
+    this.activity = 'idle';
+    this.place = 'ghost';
+    this.path = [];
+    this.onArrive = null;
+    puff(this.x, this.y);
+    this.say(randItem(GHOST_LINES), 3);
+    this.ghostPause = now() + rand(1000, 3000);
+  }
+
+  /** Back to human form (work arrived, or the session needs attention). */
+  unGhost() {
+    if (!this.ghost) return;
+    this.ghost = false;
+    this.path = [];
+    this.onArrive = null;
+    this.place = 'spot';
+    puff(this.x, this.y);
+  }
+
+  /** Float anywhere – straight through walls and desks – sometimes haunting a busy colleague. */
+  tickGhost(t) {
+    if (this.walking || t < this.ghostPause) return;
+    const busy = [...workers.values()].filter((o) => o !== this && !o.gone && !o.ghost && !o.isFree);
+    const victim = busy.length && Math.random() < 0.3 ? randItem(busy) : null;
+    const target = victim
+      ? { x: clamp(victim.x + randItem([-12, 12]), 10, 310), y: clamp(victim.y - 4, 52, 174) }
+      : { x: rand(10, 310), y: rand(52, 174) };
+    this.path = [target];
+    this.onArrive = () => {
+      this.ghostPause = now() + rand(1500, 6000);
+      if (!this.bubble && Math.random() < 0.3) this.say(randItem(GHOST_LINES), 2.5);
+    };
   }
 
   // ---- interns
@@ -227,13 +307,25 @@ export class Worker extends Person {
     this.interns.forEach((i) => i.leave());
     this.extraInterns = 0;
     this.place = 'toDoor';
-    this.walkTo(DOOR, () => {
+    const exit = () => {
       this.gone = true;
       releaseSeat(this);
-    });
+    };
+    if (this.ghost) {
+      // a ghost just floats out
+      this.path = [{ x: DOOR.x, y: DOOR.y }];
+      this.onArrive = exit;
+    } else {
+      this.walkTo(DOOR, exit);
+    }
   }
 
   update(dt) {
+    if (this.ghost && !this.isFree && !this.leaving) {
+      // e.g. a permission request or a subagent: become human again and go to the desk
+      this.unGhost();
+      this.goDesk();
+    }
     this.move(dt);
     if (this.thinkAt && now() >= this.thinkAt) {
       this.thinkAt = 0;
@@ -266,9 +358,7 @@ export class Intern extends Person {
   }
 
   spot() {
-    const s = this.boss.seat;
-    const [dx, dy] = [[-14, 1], [14, 1], [0, 10]][this.slot];
-    return { x: s.x + dx, y: s.y + dy, lane: s.lane };
+    return internSpot(this.boss.seat, this.slot);
   }
 
   leave() {

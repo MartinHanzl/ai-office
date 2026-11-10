@@ -1,6 +1,6 @@
 /** Drawing employees and interns according to their state. */
 import { now } from '../core/util.js';
-import { chairBack, figure as drawFigure } from './figure.js';
+import { chairBack, figure as drawFigure, ghostFigure } from './figure.js';
 import { EMOTIONS, moodSpeed } from '../entities/mood.js';
 import { WORKING } from '../entities/activity.js';
 
@@ -12,6 +12,10 @@ export const SEATED_ARMS = {
 
 export function drawWorker(w, t) {
   const look = w.look;
+  if (w.ghost) {
+    ghostFigure(w.x, w.y, look, t);
+    return;
+  }
   // mood: facial expression (front view) and animation tempo
   const emotion = w.mood.current;
   const mood = { face: EMOTIONS[emotion].face, speed: moodSpeed(w) };

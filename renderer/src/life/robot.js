@@ -1,20 +1,25 @@
 /** Cleaning robot roaming the empty office. */
 import { R } from '../core/canvas.js';
 import { C } from '../core/palette.js';
-import { clamp, now, rand } from '../core/util.js';
+import { now, rand } from '../core/util.js';
 import { workers } from '../state.js';
+import { isWalkable } from '../world/layout.js';
 
-export const robot = { x: 110, y: 120, angle: 0.7, turnAt: 0 };
+export const robot = { x: 110, y: 134, angle: 0.7, turnAt: 0 };
 
 
 export function updateRobot(dt) {
   if (workers.size > 0) return;
-  robot.x += Math.cos(robot.angle) * 14 * dt;
-  robot.y += Math.sin(robot.angle) * 14 * dt;
-  if (robot.x < 6 || robot.x > 314) robot.angle = Math.PI - robot.angle;
-  if (robot.y < 52 || robot.y > 176) robot.angle = -robot.angle;
-  robot.x = clamp(robot.x, 6, 314);
-  robot.y = clamp(robot.y, 52, 176);
+  const nx = robot.x + Math.cos(robot.angle) * 14 * dt;
+  const ny = robot.y + Math.sin(robot.angle) * 14 * dt;
+  if (isWalkable(nx, ny)) {
+    robot.x = nx;
+    robot.y = ny;
+  } else {
+    // bumped into furniture or a wall: turn around somewhere random
+    robot.angle += Math.PI + rand(-0.9, 0.9);
+    robot.turnAt = now() + rand(1500, 4000);
+  }
   if (now() > robot.turnAt) {
     robot.angle += rand(-1.2, 1.2);
     robot.turnAt = now() + rand(2000, 6000);

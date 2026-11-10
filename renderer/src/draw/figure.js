@@ -1,5 +1,5 @@
 /** Pixel-art human figure with poses and accessories. */
-import { R } from '../core/canvas.js';
+import { R, ctx } from '../core/canvas.js';
 import { C } from '../core/palette.js';
 import { shade } from '../core/util.js';
 
@@ -214,4 +214,30 @@ function drawFace(r, face, hd, look, t) {
     default:
       r(-1, -17 + hd, 2, 0.5, lip);
   }
+}
+
+
+/** Ghost of an employee: a floating sheet with their hair tuft and a band in their shirt colour. */
+export function ghostFigure(x, y, look, t) {
+  const by = y - 5 + Math.sin(t * 2.5 + x * 0.1) * 1.5;
+  const body = '#e8f1ff';
+  const edge = '#b8c8e0';
+  R(x - 4, y - 1, 8, 1.5, 'rgba(20,22,42,0.22)'); // shadow on the floor
+  ctx.save();
+  ctx.globalAlpha = 0.72;
+  R(x - 3, by - 21, 6, 1.5, body);
+  R(x - 5, by - 19.5, 10, 2, body);
+  R(x - 6, by - 17.5, 12, 15.5, body);
+  for (let i = 0; i < 4; i++) R(x - 6 + i * 3, by - 2, 3, (i + Math.floor(t * 4)) % 2 ? 2 : 1, body);
+  R(x - 6, by - 4, 12, 0.8, edge);
+  R(x - 2, by - 22, 4, 1.5, look.hair);
+  R(x - 6, by - 8.5, 12, 1.5, look.shirt);
+  const wave = Math.sin(t * 5) * 1;
+  R(x - 8, by - 13 + wave, 2, 3, body);
+  R(x + 6, by - 13 - wave, 2, 3, body);
+  ctx.globalAlpha = 0.9;
+  R(x - 3, by - 15, 1.5, 2, C.ink);
+  R(x + 1.5, by - 15, 1.5, 2, C.ink);
+  R(x - 0.75, by - 11.5, 1.5, 1.8, C.ink);
+  ctx.restore();
 }

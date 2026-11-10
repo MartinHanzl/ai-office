@@ -34,9 +34,11 @@ export function drawLighting(t, date) {
     lc.fillRect(gx - gr, gy - gr, gr * 2, gr * 2);
   };
   for (const d of DESKS) if (d.owner && !d.owner.leaving) light(d.cx, d.deskY, 28, 0.95);
-  light(310, 96, 36, 0.95);  // floor lamp
-  light(242, 24, 12, 0.6);   // coffee machine
-  if ([...workers.values()].some((w) => w.idle?.kind === 'sofa' && w.idle.arrived)) light(276, 94, 34, 0.85);
+  for (const w of workers.values()) if (w.ghost && !w.gone) light(w.x, w.y - 14, 16, 0.6); // ghostly glow
+  light(310, 110, 36, 0.95); // floor lamp
+  light(178, 24, 12, 0.6);   // coffee machine
+  light(160, 26, 14, 0.7);   // vending machine
+  if ([...workers.values()].some((w) => w.idle?.kind === 'sofa' && w.idle.arrived)) light(276, 108, 34, 0.85);
   if (personNearDoor()) light(298, 40, 18, 0.7);
   ctx.drawImage(lightCanvas, 0, 0);
 
@@ -44,7 +46,7 @@ export function drawLighting(t, date) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   const gx = OX + 310 * S;
-  const gy = OY + 95 * S;
+  const gy = OY + 109 * S;
   const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 22 * S);
   g.addColorStop(0, 'rgba(255,200,110,0.18)');
   g.addColorStop(1, 'rgba(255,200,110,0)');

@@ -17,6 +17,11 @@ const evalCode = `(() => {
     const free = [...o.workers.values()];
     if (free.length >= 2) new o.Convo(free[0], free[1], o.CHAT_PAIRS[0]);
   }, 4000);
+  setTimeout(() => {
+    // free for over 5 minutes → ghost
+    const idle = [...o.workers.values()].find((w) => w.isFree);
+    if (idle) idle.freeSince = performance.now() - 6 * 60e3;
+  }, 1000);
   setTimeout(() => { o.state.forceHour = 22; }, 5000);
   setTimeout(() => { o.state.limits = { fiveHour: { used: 100, resetsAt: Date.now() + 3600e3 }, week: { used: 40 } }; }, 6000);
   setTimeout(() => o.openStats(), 9000);

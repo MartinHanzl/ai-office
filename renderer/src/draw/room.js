@@ -1,13 +1,13 @@
-/** Static room: floor, walls, windows, whiteboard, wall panels. */
+/** Static room: floors, back wall with windows, whiteboard, kitchenette, wall panels, door. */
 import { H, OX, OY, R, S, W, ctx, text } from '../core/canvas.js';
 import { C } from '../core/palette.js';
-import { noise, pad2 } from '../core/util.js';
+import { noise, pad2, shade } from '../core/util.js';
 import { figure } from './figure.js';
 import { drawTV, plant } from './furniture.js';
 import { lookFor } from '../entities/look.js';
 import { WEEKDAYS, fmtReset, fuelColor, hourOf, remaining, strikeActive, strikeUntil } from '../limits.js';
 import { state, stats, workers } from '../state.js';
-import { DOOR } from '../world/layout.js';
+import { DOOR, FLOOR_Y, GLASS_Y } from '../world/layout.js';
 
 /** Plan-mode diagram on the whiteboard, drawn step by step. */
 export function drawDiagram(x, y, t) {
@@ -30,12 +30,12 @@ export function drawPortrait(t) {
   R(4, 6, 20, 26, '#c8a24a');
   R(5, 7, 18, 24, '#a8842e');
   R(6, 8, 16, 18, '#29366f');
-  if (state.employeeOfWeek) {
+  if (state.projectOfWeek) {
     ctx.save();
     ctx.beginPath();
     ctx.rect(OX + 6 * S, OY + 8 * S, 16 * S, 18 * S);
     ctx.clip();
-    figure(14, 40, lookFor(state.employeeOfWeek.key, state.employeeOfWeek.level), { view: 'front', arms: 'down', t }, 1.25);
+    figure(14, 40, lookFor(state.projectOfWeek.key, state.projectOfWeek.level), { view: 'front', arms: 'down', t }, 1.25);
     ctx.restore();
   } else {
     text('?', 14, 20, 7, C.metal);
@@ -126,84 +126,134 @@ export function personNearDoor() {
 }
 
 
-export function drawRoom(t, date) {
-  // floor
-  R(0, 46, W, H - 46, C.floorA);
-  for (let row = 0, y = 46; y < H; row++, y += 6) {
-    if (row % 2) R(0, y, W, 6, C.floorB);
-    R(0, y, W, 0.5, C.seam);
-    for (let x = (row * 23) % 48; x < W; x += 48) R(x, y, 0.5, 6, C.seam);
+/** Tiled floor in a rectangle: `a`/`b` alternate per tile, `seam` lines between tiles. */
+function floor(x, y, w, h, tile, a, b, seam) {
+  R(x, y, w, h, a);
+  for (let ty = 0; ty * tile < h; ty++) {
+    for (let tx = 0; tx * tile < w; tx++) {
+      if ((tx + ty) % 2) R(x + tx * tile, y + ty * tile, Math.min(tile, w - tx * tile), Math.min(tile, h - ty * tile), b);
+    }
   }
-  // lounge rug
-  R(226, 92, 90, 78, C.rugEdge);
-  R(228, 94, 86, 74, C.rug);
-  for (let i = 0; i < 6; i++) R(232 + i * 14, 98, 6, 1, C.rugEdge);
+  if (!seam) return;
+  for (let yy = y; yy < y + h; yy += tile) R(x, yy, w, 0.5, seam);
+  for (let xx = x; xx < x + w; xx += tile) R(xx, y, 0.5, h, seam);
+}
 
-  // wall
+
+/** Company sign above the reception – a made-up brand. */
+export function drawLogo(x, y) {
+  R(x, y, 58, 13, C.trim);
+  R(x + 1, y + 1, 56, 11, C.paper);
+  // paper stack icon
+  R(x + 3, y + 3, 7, 7, C.white);
+  R(x + 4, y + 2, 7, 7, '#d7d3c4');
+  R(x + 5, y + 1.5, 6, 6.5, C.white);
+  R(x + 9, y + 1.5, 2, 2, C.blue);
+  text('PAPÍRNA SVIŠŤ', x + 34, y + 6.4, 3.4, C.ink);
+  text('pobočka', x + 34, y + 10.6, 2.4, C.metalDark);
+}
+
+
+export function drawRoom(t, date) {
+  // floors: carpet tiles in the bullpen, darker carpet in the glass rooms, linoleum by the kitchen and in the break room
+  floor(0, FLOOR_Y, W, H - FLOOR_Y, 12, C.carpetA, C.carpetB, null);
+  floor(0, FLOOR_Y, 151, GLASS_Y - FLOOR_Y + 4, 8, C.roomA, C.roomB, null);
+  floor(152, FLOOR_Y, W - 152, 54, 8, C.linoA, C.linoB, C.linoSeam);
+  floor(196, 100, W - 196, H - 100, 8, C.linoA, C.linoB, C.linoSeam);
+  // break room rug
+  R(226, 106, 90, 70, C.rugEdge);
+  R(228, 108, 86, 66, C.rug);
+  for (let i = 0; i < 6; i++) R(232 + i * 14, 112, 6, 1, C.rugEdge);
+
+  // back wall; trims where the glass rooms meet it
   R(0, 0, W, 46, C.wall);
   R(0, 0, W, 2, C.trim);
   R(0, 30, W, 1, C.wallLight);
   R(0, 44, W, 2, C.trim);
+  R(0, 2, 151, 28, C.wallRoom);
 
   const sky = skyFor(hourOf(date));
-  drawWindow(30, 8, 50, 20, sky, t);
-  drawWindow(90, 8, 50, 20, sky, t);
+  // manager's office: employee of the week, window
   drawPortrait(t);
+  drawWindow(30, 8, 28, 20, sky, t);
+  // conference room: whiteboard + window
+  drawWindow(116, 8, 30, 20, sky, t);
 
   // whiteboard: today's finished tasks / plan-mode meeting diagram / strike notice
-  R(147, 7, 40, 26, C.metalDark);
-  R(148, 8, 38, 24, C.white);
+  const bx = 70;
+  R(bx, 7, 40, 26, C.metalDark);
+  R(bx + 1, 8, 38, 24, C.white);
   const meeting = [...workers.values()].some((w) => w.place === 'board');
   if (strikeActive()) {
-    text('STÁVKA', 167, 17, 5.5, C.red);
-    text('došly tokeny', 167, 23, 3, C.metalDark);
-    text(`do ${fmtReset(strikeUntil > Date.now() ? strikeUntil : state.limits?.fiveHour?.resetsAt) || '?'}`, 167, 28.5, 3, C.metalDark);
+    text('STÁVKA', bx + 20, 17, 5.5, C.red);
+    text('došly tokeny', bx + 20, 23, 3, C.metalDark);
+    text(`do ${fmtReset(strikeUntil > Date.now() ? strikeUntil : state.limits?.fiveHour?.resetsAt) || '?'}`, bx + 20, 28.5, 3, C.metalDark);
   } else if (meeting) {
-    drawDiagram(148, 8, t);
-    text(`✓ ${stats.done}`, 184.5, 30.5, 2.6, C.green, 'right');
+    drawDiagram(bx + 1, 8, t);
+    text(`✓ ${stats.done}`, bx + 37.5, 30.5, 2.6, C.green, 'right');
   } else {
-    text('HOTOVO DNES', 167, 14, 3.2, C.metalDark);
-    text(String(stats.done), 167, 26, 9, C.green);
+    text('HOTOVO DNES', bx + 20, 14, 3.2, C.metalDark);
+    text(String(stats.done), bx + 20, 26, 9, C.green);
   }
-  R(149, 33, 36, 1.5, C.metal);
-  R(155, 32, 3, 1, C.red);
-  R(160, 32, 3, 1, C.blue);
+  R(bx + 2, 33, 36, 1.5, C.metal);
+  R(bx + 8, 32, 3, 1, C.red);
+  R(bx + 13, 32, 3, 1, C.blue);
 
-  drawClock(190, 9, date);
-  drawLimits(190, 27);
+  // side walls of the glass rooms (seen edge-on)
+  for (const x of [63, 148]) {
+    R(x, 24, 4, GLASS_Y - 24, C.glass);
+    R(x, 24, 1, GLASS_Y - 24, C.glassFrame);
+    R(x + 3, 24, 1, GLASS_Y - 24, C.glassFrame);
+    R(x, 23, 4, 1.2, C.glassFrame);
+  }
 
-  // water cooler
-  R(220, 24, 8, 22, C.white);
-  R(220, 44, 8, 2, C.metal);
-  R(221, 13, 6, 11, '#73eff7cc');
-  R(222, 14, 1.5, 8, '#ffffff88');
-  R(222, 30, 2, 2, C.blue);
-  R(225, 30, 2, 2, C.red);
-
-  // kitchenette counter
-  R(232, 30, 54, 3, C.paper);
-  R(232, 33, 54, 13, C.deskEdge);
+  // manager's office: filing cabinet
+  R(50, 30, 12, 24, C.metalDark);
   for (let i = 0; i < 3; i++) {
-    R(234 + i * 18, 35, 16, 9, C.deskFront);
-    R(240 + i * 18, 39, 4, 1, C.deskTop);
+    R(51, 31 + i * 7.5, 10, 6.5, C.metal);
+    R(54, 33.5 + i * 7.5, 4, 1, C.metalDark);
   }
-  // coffee machine
-  R(236, 16, 12, 14, C.ink);
-  R(237, 17, 10, 4, C.chair);
-  R(245, 18, 1.5, 1.5, Math.floor(t * 2) % 2 ? C.red : C.green);
-  R(240, 22, 4, 2, C.metal);
-  R(240, 26, 4, 4, C.white);
-  // microwave
-  R(254, 21, 16, 9, C.metal);
-  R(255, 22, 10, 7, C.ink);
-  R(267, 23, 2, 1, C.green);
-  // fruit bowl
-  R(274, 27, 9, 3, C.white);
-  R(275, 25, 2.5, 2.5, C.red);
-  R(278, 25, 2.5, 2.5, C.yellow);
-  R(280, 26, 2.5, 2.5, C.lime);
 
-  // door
+  // kitchenette: vending machine, counter, coffee machine, microwave, fruit, water cooler
+  R(153, 10, 14, 40, C.red);
+  R(154, 12, 9, 26, C.night);
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) R(155 + c * 2.8, 13.5 + r * 6, 2, 3, [C.yellow, C.lime, C.orange, C.teal][(r + c) % 4]);
+  R(164, 14, 2, 8, C.metal);
+  R(154, 40, 9, 4, C.ink);
+  R(153, 10, 14, 1.5, shade(C.red, 0.25));
+
+  R(170, 30, 42, 3, C.paper);
+  R(170, 33, 42, 13, C.deskEdge);
+  for (let i = 0; i < 3; i++) {
+    R(171.5 + i * 13.5, 35, 12, 9, C.deskFront);
+    R(176 + i * 13.5, 39, 3, 1, C.deskTop);
+  }
+  R(172, 16, 12, 14, C.ink);
+  R(173, 17, 10, 4, C.chair);
+  R(181, 18, 1.5, 1.5, Math.floor(t * 2) % 2 ? C.red : C.green);
+  R(176, 22, 4, 2, C.metal);
+  R(176, 26, 4, 4, C.white);
+  R(187, 21, 15, 9, C.metal);
+  R(188, 22, 9, 7, C.ink);
+  R(199, 23, 2, 1, C.green);
+  R(203, 27, 8, 3, C.white);
+  R(203.5, 25, 2.5, 2.5, C.red);
+  R(206, 25, 2.5, 2.5, C.yellow);
+  R(208.5, 26, 2.5, 2.5, C.lime);
+
+  R(214, 24, 8, 22, C.white);
+  R(214, 44, 8, 2, C.metal);
+  R(215, 13, 6, 11, '#73eff7cc');
+  R(216, 14, 1.5, 8, '#ffffff88');
+  R(216, 30, 2, 2, C.blue);
+  R(219, 30, 2, 2, C.red);
+
+  // reception wall: company sign, clock, limits
+  drawLogo(226, 2);
+  drawClock(226, 17, date);
+  drawLimits(256, 17);
+
+  // entrance
   R(288, 12, 20, 34, C.trim);
   if (personNearDoor()) {
     R(290, 14, 16, 32, C.night);
@@ -217,15 +267,16 @@ export function drawRoom(t, date) {
   text('EXIT', 298, 10.5, 3, C.lime);
 
   // plants
-  plant(6, 52);
-  plant(312, 172);
-  plant(220, 178);
+  plant(6, 54);
+  plant(143, 56);
+  plant(312, 176);
+  plant(200, 178);
 
-  // lounge: TV (sofa is depth-sorted in front of its sitters)
+  // break room: TV (sofa is depth-sorted in front of its sitters)
   const watching = [...workers.values()].some((w) => w.idle?.kind === 'sofa' && w.idle.arrived);
   drawTV(t, watching);
   // floor lamp
-  R(309, 96, 2, 26, C.metalDark);
-  R(305, 92, 10, 5, C.yellow);
-  R(306, 122, 8, 2, C.metalDark);
+  R(309, 110, 2, 26, C.metalDark);
+  R(305, 106, 10, 5, C.yellow);
+  R(306, 136, 8, 2, C.metalDark);
 }

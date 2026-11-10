@@ -5,17 +5,19 @@ import { C } from '../core/palette.js';
 import { clamp, now, rand, randItem } from '../core/util.js';
 import { hearts } from './particles.js';
 import { workers } from '../state.js';
-import { DESKS } from '../world/layout.js';
+import { DESKS, randomFloorPoint, route } from '../world/layout.js';
 
 export const CAT_SPEED = 22;
 
-export const cat = { x: 130, y: 105, tx: 130, ty: 105, state: 'sit', next: 'sit', until: 0, dir: 1, step: 0, onTop: 0, pendingTop: 0, bubble: null };
+export const cat = { x: 130, y: 134, path: [], state: 'sit', next: 'sit', until: 0, dir: 1, step: 0, onTop: 0, pendingTop: 0, bubble: null };
 
 
 export function catSpots() {
   const spots = [
-    { x: 270, y: 127 },             // rug in front of the TV
-    { x: 262, y: 104, onTop: 2 },   // on top of the TV cabinet
+    { x: 270, y: 141 },             // rug in front of the TV
+    { x: 262, y: 118, onTop: 2 },   // on top of the TV cabinet
+    { x: 209, y: 97, onTop: 20 },   // on the warm copier
+    { x: 266, y: 59, onTop: 17 },   // on the reception counter
   ];
   for (const d of DESKS) {
     if (!d.owner) spots.push({ x: d.cx + 5, y: d.deskY + 5, onTop: 13 }); // on an empty desk's keyboard
@@ -25,8 +27,7 @@ export function catSpots() {
 
 
 export function catGo(x, y, next, onTop = 0) {
-  cat.tx = x;
-  cat.ty = y;
+  cat.path = route({ x: cat.x, y: cat.y }, { x, y });
   cat.next = next;
   cat.pendingTop = onTop;
   cat.onTop = 0;
@@ -44,7 +45,8 @@ export function chooseCatTarget() {
     const w = randItem(visitable);
     catGo(clamp(w.x + randItem([-9, 9]), 6, 314), w.y + 2, 'sit');
   } else {
-    catGo(rand(10, 310), randItem([54, 100, 105, 125, 160, 166]), 'sit');
+    const p = randomFloorPoint({ x: 0, y: 48, w: 320, h: 132 });
+    if (p) catGo(p.x, p.y, 'sit');
   }
 }
 
@@ -52,21 +54,29 @@ export function chooseCatTarget() {
 export function updateCat(dt) {
   const t = now();
   if (cat.state === 'walk') {
-    const dx = cat.tx - cat.x;
-    const dy = cat.ty - cat.y;
-    const d = Math.hypot(dx, dy);
-    const stepLen = CAT_SPEED * dt;
-    if (d <= stepLen) {
-      cat.x = cat.tx;
-      cat.y = cat.ty;
+    let budget = CAT_SPEED * dt;
+    while (budget > 0 && cat.path.length) {
+      const p = cat.path[0];
+      const dx = p.x - cat.x;
+      const dy = p.y - cat.y;
+      const d = Math.hypot(dx, dy);
+      if (Math.abs(dx) > 0.3) cat.dir = dx > 0 ? 1 : -1;
+      if (d <= budget) {
+        cat.x = p.x;
+        cat.y = p.y;
+        budget -= d;
+        cat.path.shift();
+      } else {
+        cat.x += (dx / d) * budget;
+        cat.y += (dy / d) * budget;
+        budget = 0;
+      }
+    }
+    cat.step += dt * 10;
+    if (!cat.path.length) {
       cat.state = cat.next;
       cat.onTop = cat.pendingTop;
       cat.until = t + (cat.state === 'sleep' ? rand(40_000, 120_000) : rand(5000, 15_000));
-    } else {
-      cat.x += (dx / d) * stepLen;
-      cat.y += (dy / d) * stepLen;
-      if (Math.abs(dx) > 0.3) cat.dir = dx > 0 ? 1 : -1;
-      cat.step += dt * 10;
     }
   } else if (t > cat.until) {
     chooseCatTarget();

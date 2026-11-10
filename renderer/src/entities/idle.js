@@ -3,7 +3,7 @@ import { DIALOGS } from '../content/texts.js';
 import { now, rand, randItem } from '../core/util.js';
 import { strikeActive } from '../limits.js';
 import { convos, workers } from '../state.js';
-import { CHAT_PAIRS } from '../world/layout.js';
+import { chatPair } from '../world/layout.js';
 import { moodEvent, moodIdleWeights } from './mood.js';
 
 /** How many times two employees (by project key) chatted – two chats make them friends. */
@@ -78,7 +78,7 @@ export class Convo {
 
 
 export function findPartner(w) {
-  const candidates = [...workers.values()].filter((o) => o !== w && o.isFree && !o.idle?.convo && !o.walking);
+  const candidates = [...workers.values()].filter((o) => o !== w && o.isFree && !o.ghost && !o.idle?.convo && !o.walking);
   if (!candidates.length) return null;
   // friends are three times as likely to be picked
   const pool = candidates.flatMap((o) => (areFriends(w, o) ? [o, o, o] : [o]));
@@ -95,8 +95,9 @@ export function pickIdle(w) {
     { kind: 'sofa', weight: 2 * mood.sofa, secs: [30, 90] },
     { kind: 'browse', weight: 3, secs: [30, 90] },
     { kind: 'sit', weight: 1, secs: [10, 30] },
+    { kind: 'stroll', weight: 1.5 * mood.stroll, secs: [20, 50] },
     { kind: 'window', weight: 0.5 * mood.window, secs: [15, 40] },
-    { kind: 'nap', weight: freeFor > 5 * 60_000 || w.mood.energy < -0.4 ? 3 * mood.nap : 0, secs: [60, 180] },
+    { kind: 'nap', weight: freeFor > 3 * 60_000 || w.mood.energy < -0.4 ? 3 * mood.nap : 0, secs: [60, 180] },
   ];
   if (strikeActive()) {
     // on strike nobody even pretends to work: no browsing at the desk
@@ -110,7 +111,9 @@ export function pickIdle(w) {
     if (choice.weight === 0) continue;
     if (choice.kind === 'chat') {
       const partner = findPartner(w);
-      const pair = CHAT_PAIRS.find((p) => !p[0].owner && !p[1].owner);
+      // somewhere else every time, away from the others who are slacking
+      const busy = [...workers.values()].map((o) => o.idle?.spot).filter(Boolean);
+      const pair = partner && chatPair(busy);
       if (partner && pair) {
         new Convo(w, partner, pair);
         return;

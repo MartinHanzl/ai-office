@@ -54,6 +54,7 @@ export function handle(ev) {
     if (ev.type === 'join') w.say(pick(GREETINGS, hash(w.id)), 3);
   }
   if (ev.project && !w.project.includes('·')) w.project = ev.project;
+  if (ev.name) w.name ??= ev.name;
   if (ev.profile) w.setProfile(ev.profile);
   if (ev.mode) w.setMode(ev.mode);
 
@@ -139,7 +140,7 @@ export function restore(sessions) {
   for (const s of sessions) {
     // live events may arrive before the snapshot does – those sessions already exist
     if (workers.has(s.id)) continue;
-    const w = new Worker({ sessionId: s.id, source: s.source, cwd: s.cwd, project: s.project, profile: s.profile, mode: s.mode });
+    const w = new Worker({ sessionId: s.id, name: s.name, source: s.source, cwd: s.cwd, project: s.project, profile: s.profile, mode: s.mode });
     workers.set(w.id, w);
     w.placeAt(w.seat);
     w.place = 'desk';

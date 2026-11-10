@@ -3,7 +3,9 @@ import { H, OX, OY, S, W, canvas, ctx } from './core/canvas.js';
 import { C } from './core/palette.js';
 import { now } from './core/util.js';
 import { chairBack } from './draw/figure.js';
-import { drawDesk, drawSofa } from './draw/furniture.js';
+import {
+  drawConferenceGlass, drawConferenceTable, drawCopier, drawDesk, drawManagerGlass, drawReception, drawSofa,
+} from './draw/furniture.js';
 import { drawEmptyOverlay, drawOverlay } from './draw/overlay.js';
 import { drawIntern, drawWorker } from './draw/people.js';
 import { drawRoom } from './draw/room.js';
@@ -11,7 +13,7 @@ import { drawLifeOverlay, lifeItems, updateLife } from './life/index.js';
 import { drawLighting } from './life/lighting.js';
 import { drawParticles } from './life/particles.js';
 import { convos, workers } from './state.js';
-import { DESKS } from './world/layout.js';
+import { DESKS, GLASS_Y } from './world/layout.js';
 
 export function draw(t, dt) {
   const date = new Date();
@@ -32,9 +34,16 @@ export function draw(t, dt) {
       items.push({ y: d.seatY - 0.1, draw: () => chairBack(d.cx, d.seatY, false) });
     }
   }
-  items.push({ y: 147, draw: drawSofa });
+  items.push({ y: 161, draw: drawSofa });
+  items.push({ y: GLASS_Y + 3, draw: drawManagerGlass });
+  items.push({ y: GLASS_Y + 3, draw: drawConferenceGlass });
+  items.push({ y: 74, draw: drawConferenceTable });
+  items.push({ y: 74.5, draw: () => drawReception(t) });
+  const copying = [...workers.values()].some((w) => Math.hypot(w.x - 209, w.y - 120) < 12);
+  items.push({ y: 116, draw: () => drawCopier(t, copying) });
   for (const w of workers.values()) {
-    if (!w.gone) items.push({ y: w.y, draw: () => drawWorker(w, t) });
+    // ghosts float above everything (they fly through walls and desks)
+    if (!w.gone) items.push({ y: w.ghost ? 1000 + w.y : w.y, draw: () => drawWorker(w, t) });
     for (const i of w.interns) items.push({ y: i.y + 0.2, draw: () => drawIntern(i, t) });
   }
   items.push(...lifeItems(t));

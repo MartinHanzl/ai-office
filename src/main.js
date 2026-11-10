@@ -11,7 +11,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { demoScript } = require('./demo');
-const { Store } = require('./store');
+const { Store, pickName } = require('./store');
 const { focusTty } = require('./focus');
 const { basename, normalize, sessionKey, toolCategory } = require('./hook-events');
 
@@ -65,8 +65,9 @@ function applyToSession(ev) {
     const key = sessionKey(ev);
     const project = basename(ev.cwd) || ev.source;
     store.profile(key, project);
+    const name = pickName(new Set([...sessions.values()].map((x) => x.name)));
     s = {
-      id: ev.sessionId, key, source: ev.source, cwd: ev.cwd, project, tty: null, mode: null,
+      id: ev.sessionId, key, name, source: ev.source, cwd: ev.cwd, project, tty: null, mode: null,
       status: 'idle', tool: '', text: '', subagents: 0, waiting: false, lastTs: ev.ts,
       // a session we saw start costs $0 so far; for sessions already running we only count increments
       workStart: null, context: null, cost: ev.type === 'join' ? 0 : null,
@@ -123,13 +124,14 @@ function ingest(ev) {
   const s = result?.s;
   if (s) {
     ev.project = s.project;
+    ev.name = s.name;
     ev.profile = store.publicProfile(s.key);
     if (ev.type === 'done') ev.workMs = result.workMs; // long tasks tire employees out (renderer mood)
   }
   broadcast('office:event', ev);
   if (s && result.promoted != null) {
     broadcast('office:event', { type: 'levelUp', sessionId: s.id, profile: ev.profile, ts: ev.ts });
-    notify(`⭐ ${ev.profile.name} povýšen(a)!`, `${s.project}: nově ${ev.profile.title}`, s.id);
+    notify(`⭐ Projekt ${s.project} povýšen!`, `Tým je nově ${ev.profile.title}.`, s.id);
   }
   if (s) notifyFor(ev, s, result.workMs);
   updateTray();
@@ -138,7 +140,7 @@ function ingest(ev) {
 const fmtDuration = (ms) => (ms >= 60_000 ? `${Math.round(ms / 60_000)} min` : `${Math.round(ms / 1000)} s`);
 
 function notifyFor(ev, s, workMs) {
-  const who = `${ev.profile?.name ?? s.project} (${s.project})`;
+  const who = `${s.name} (${s.project})`;
   if (ev.type === 'waiting') notify(`🙋 ${who} potřebuje povolení`, ev.text || 'Čeká na tvoje rozhodnutí.', s.id);
   else if (ev.type === 'done' && workMs >= 20_000) notify(`✅ ${who} má hotovo`, `Úkol trval ${fmtDuration(workMs)}.`, s.id);
   else if (ev.type === 'failure') {

@@ -49,10 +49,10 @@ s časem resetu ve spodní liště. Data přichází jen u předplatného Pro/Ma
   jako Warp, PhpStorm a VS Code se jen aktivují). Hook kvůli tomu posílá TTY procesu Claude.
 - **Notifikace macOS** (když okno kanceláře není v popředí): žádost o povolení, hotový úkol delší než 20 s, chyba API,
   povýšení. Klik na notifikaci přepne do terminálu. Vypínají se v menu ikony.
-- **Stálí zaměstnanci**: každý projekt má svého člověka se jménem a kariérou (XP: +1 za nástroj, +10 za úkol;
-  Junior → Medior → Senior → Lead → Ředitel). S úrovní přibývají brýle, kravata, sluchátka a oblek.
+- **Zaměstnanci a kariéra**: každá session dostane náhodné jméno a vzhled. Kariéru má projekt (XP: +1 za nástroj,
+  +10 za úkol; Junior → Medior → Senior → Lead → Ředitel) – s úrovní přibývají brýle, kravata, sluchátka a oblek.
 - **Statistiky** (klik na tabuli nebo portrét, nebo menu ikony): úkoly, odpracovaný čas, výplata a nástroje za dnešek
-  a 7 dní. Na zdi visí portrét **zaměstnance týdne**. Data jsou v `~/Library/Application Support/ai-office/office-data.json`.
+  a 7 dní po projektech. Na zdi visí portrét **projektu týdne**. Data jsou v `~/Library/Application Support/ai-office/office-data.json`.
 - **Plan mód** → porada u tabule s diagramem.
 - **Chyba nástroje** → zaměstnanec se chytá za hlavu a z monitoru se kouří. **Došly tokeny** (`StopFailure`
   rate_limit nebo 0 % v limitech) → stávka s transparenty až do resetu.
@@ -62,6 +62,17 @@ s časem resetu ve spodní liště. Data přichází jen u předplatného Pro/Ma
   commit nebo hotový dlouhý úkol → ♪ radost (ruce nahoru), povýšení → ⭐ hrdost, 3+ stážisti → 🌀 zahlcení.
   Je to vidět na výrazu obličeje, ikonce u hlavy, tempu psaní a v hláškách. Nálada řídí i pauzy
   (unavený jde na kafe, frustrovaný kouká z okna) a kdo spolu často klábosí, stanou se kamarády.
+- **Kancelář** pobočky vymyšlené firmy *Papírna Svišť*: prosklená kancelář vedoucího (sedí v ní zaměstnanec
+  s úrovní Lead a výš, jinak až když je plný open space) a zasedačka s tabulí (porady v plan módu, okno pro
+  frustrované), kuchyňka s automatem, recepce u vchodu, open space se dvěma řadami stolů a odpočívárna
+  s kopírkou, televizí a gaučem.
+- **Pohyb**: cesty hledá A* po mřížce (`renderer/src/world/path.js`) s náhodnými cenami polí a občasnou
+  zajížďkou, takže nikdo nechodí pořád stejně. Každý má vlastní tempo chůze, klábosí se pokaždé jinde
+  a znudění se jen tak procházejí po kanceláři. Kočka i vysavač obcházejí nábytek a stěny.
+- **Duchové**: kdo je přes 5 minut bez práce, ale jeho session (terminál) pořád běží, promění se v obláčku mlhy
+  v ducha. Ten se vznáší kudy chce, i skrz zdi a stoly, občas straší pracujícího kolegu a v noci slabě svítí.
+  Jakmile přijde prompt, žádost o povolení nebo stážista, zase se zhmotní a jde ke stolu. Při stávce se
+  duchové nedělají.
 - **Život**: kočka Bajt (dá se pohladit), robotický vysavač v prázdné kanceláři, konfety při `git commit`/`push`,
   večer a v noci zhasnuto a svítí jen stoly, lampa a televize.
 
@@ -90,7 +101,7 @@ npm run test:smoke   # spustí appku s demem, vynutí stavy (noc, stávka, stati
 src/                    hlavní proces (CommonJS)
   main.js               okna, tray, HTTP server, sessions, notifikace
   hook-events.js        převod payloadů hooků na události kanceláře (čistá logika, testovaná)
-  store.js              profily zaměstnanců, XP, denní statistiky (office-data.json)
+  store.js              kariéra projektů (XP), náhodná jména, denní statistiky (office-data.json)
   focus.js              přepnutí do terminálu podle TTY
 renderer/src/           renderer (ES moduly, bez buildu)
   main.js               vstupní bod – IPC, obnova stavu, smyčka

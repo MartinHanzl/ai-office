@@ -1,7 +1,7 @@
 'use strict';
 /**
  * Persistent office data (userData/office-data.json):
- *  - profiles: one named employee per project with XP and a career level
+ *  - profiles: per-project XP and career level (employee names are random per session, see pickName)
  *  - days: per-day statistics per project (tasks, tool usage, working time, cost)
  */
 const fs = require('node:fs');
@@ -30,13 +30,14 @@ function levelFor(xp) {
   return i;
 }
 
-function hash(str) {
-  let h = 2166136261;
-  for (const ch of String(str)) {
-    h ^= ch.codePointAt(0);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
+/** Random employee name that isn't in `used` (names of employees currently in the office). */
+function pickName(used = new Set(), random = Math.random) {
+  const free = NAMES.filter((n) => !used.has(n));
+  if (free.length) return free[Math.floor(random() * free.length)];
+  const base = NAMES[Math.floor(random() * NAMES.length)];
+  let i = 2;
+  while (used.has(`${base} ${i}`)) i += 1;
+  return `${base} ${i}`;
 }
 
 const isDemo = (key) => key.startsWith('demo:');
@@ -77,16 +78,11 @@ class Store {
     for (const day of Object.keys(this.data.days)) if (day < cutoff) delete this.data.days[day];
   }
 
-  /** Get or create the employee for a project. */
+  /** Get or create the career profile of a project. */
   profile(key, label) {
     let p = this.data.profiles[key];
     if (!p) {
-      const used = new Set(Object.values(this.data.profiles).map((x) => x.name));
-      const start = hash(key) % NAMES.length;
-      let name = NAMES[start];
-      for (let i = 1; i < NAMES.length && used.has(name); i++) name = NAMES[(start + i) % NAMES.length];
-      if (used.has(name)) name = `${NAMES[start]} ${Object.keys(this.data.profiles).length + 1}`;
-      p = { name, label, xp: 0, done: 0, since: Date.now() };
+      p = { label, xp: 0, done: 0, since: Date.now() };
       this.data.profiles[key] = p;
       this.save();
     }
@@ -98,7 +94,7 @@ class Store {
     if (!p) return null;
     const level = levelFor(p.xp);
     return {
-      key, name: p.name, label: p.label, xp: p.xp, done: p.done, level,
+      key, label: p.label, xp: p.xp, done: p.done, level,
       title: LEVELS[level].title, levelXp: LEVELS[level].xp, nextXp: LEVELS[level + 1]?.xp ?? null,
     };
   }
@@ -145,7 +141,7 @@ class Store {
     this.save();
   }
 
-  /** Aggregates for the stats panel: today, last 7 days, employee of the week. */
+  /** Aggregates for the stats panel (rows per project): today, last 7 days, project of the week. */
   stats() {
     const today = dayKey();
     const weekStart = dayKey(new Date(Date.now() - 6 * 86_400_000));
@@ -170,9 +166,9 @@ class Store {
     return {
       today: collect((d) => d === today),
       week,
-      employeeOfWeek: top ? { key: top.key, name: top.name, label: top.label, level: top.level, title: top.title, done: top.done } : null,
+      projectOfWeek: top ? { key: top.key, label: top.label, level: top.level, title: top.title, done: top.done } : null,
     };
   }
 }
 
-module.exports = { Store, LEVELS };
+module.exports = { Store, LEVELS, NAMES, pickName };

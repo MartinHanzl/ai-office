@@ -9,7 +9,11 @@ export const IDLE_LINES = {
   browse: ['lol 😂', 'Kočičí videa 🐱', 'Hmm…', 'To je dobrý', 'Jen jeden článek…'],
   nap: ['Z z z…'],
   window: ['Musím si vyčistit hlavu…', 'Pěkný výhled.', 'Nádech… výdech…'],
+  stroll: ['Protáhnout nohy…', 'Co je novýho?', 'Hmm, kam jsem to šel?', 'Jen se projdu', 'Kdo zase zabral tiskárnu?'],
 };
+
+/** Ghosts: employees whose terminal is open but who have had no work for a while. */
+export const GHOST_LINES = ['Búúú… 👻', 'Nikdo mi nedává práci…', 'Jsem jen stín sebe sama', 'Úúú…', 'Kde je ten prompt?', 'Straším, dokud nepřijde úkol'];
 
 /** Said when an employee switches into a mood (rate-limited, see entities/mood.js). */
 export const MOOD_LINES = {
@@ -53,7 +57,7 @@ export const ACTIVITY_CZ = {
   surfing: 'surfuje po internetu',
 };
 
-export const IDLE_CZ = { coffee: 'pije kafe', sofa: 'kouká na televizi', chat: 'klábosí', browse: 'surfuje po internetu', nap: 'dřímá', sit: 'odpočívá', window: 'kouká z okna' };
+export const IDLE_CZ = { coffee: 'pije kafe', sofa: 'kouká na televizi', chat: 'klábosí', browse: 'surfuje po internetu', nap: 'dřímá', sit: 'odpočívá', window: 'kouká z okna', stroll: 'prochází se po kanceláři' };
 
 
 export const TOOL_CZ = {

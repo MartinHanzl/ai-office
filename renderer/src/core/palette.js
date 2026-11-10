@@ -9,6 +9,9 @@ export const C = {
   lime: '#a7f070', blue: '#41a6f6', teal: '#73eff7', purple: '#b55088', orange: '#ef7d57',
   chair: '#333c57', chairDark: '#22263a', rug: '#5d275d', rugEdge: '#7e3a7e',
   plant: '#38b764', plantDark: '#257179', pot: '#a05b53', sofa: '#5d6dd8',
+  carpetA: '#5f6b80', carpetB: '#59657a', roomA: '#6b5a72', roomB: '#66566d', wallRoom: '#414a6e',
+  linoA: '#cfc6a6', linoB: '#bdb493', linoSeam: '#aaa182',
+  glass: 'rgba(170,225,245,0.16)', glassFrame: '#8fa3b8', blinds: 'rgba(232,230,217,0.55)',
 };
 
 export const SHIRTS = ['#41a6f6', '#e43b44', '#38b764', '#ef7d57', '#b55088', '#f4d35e', '#73eff7', '#a7f070', '#5d6dd8', '#ff9ec4'];

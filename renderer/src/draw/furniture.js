@@ -1,20 +1,21 @@
-/** Desks, TV, sofa, plants. */
-import { R } from '../core/canvas.js';
+/** Desks, TV, sofa, plants, glass walls, conference table, reception, copier. */
+import { R, text } from '../core/canvas.js';
 import { C } from '../core/palette.js';
 import { now, shade } from '../core/util.js';
 import { drawScreen, screenActivity } from './screens.js';
+import { GLASS_Y, ROOMS } from '../world/layout.js';
 
 /** Lounge TV on a low cabinet; switches channels while someone watches. */
 export function drawTV(t, on) {
-  R(252, 104, 48, 9, C.deskEdge);
-  R(254, 106, 20, 5, C.deskFront);
-  R(276, 106, 22, 5, C.deskFront);
-  R(253, 113, 2, 2, C.deskLeg);
-  R(297, 113, 2, 2, C.deskLeg);
-  R(273, 101, 6, 3, C.ink);
-  R(256, 82, 40, 20, C.ink);
+  R(252, 118, 48, 9, C.deskEdge);
+  R(254, 120, 20, 5, C.deskFront);
+  R(276, 120, 22, 5, C.deskFront);
+  R(253, 127, 2, 2, C.deskLeg);
+  R(297, 127, 2, 2, C.deskLeg);
+  R(273, 115, 6, 3, C.ink);
+  R(256, 96, 40, 20, C.ink);
   const x = 258;
-  const y = 84;
+  const y = 98;
   const w = 36;
   const h = 16;
   if (!on) {
@@ -57,13 +58,13 @@ export function drawTV(t, on) {
 
 /** Sofa seen from behind (faces the TV); drawn over whoever sits on it. */
 export function drawSofa() {
-  R(242, 136, 66, 11, C.sofa);
-  R(242, 136, 66, 1.5, shade(C.sofa, 0.25));
-  for (let i = 1; i < 4; i++) R(242 + i * 16.5, 138, 0.6, 8, shade(C.sofa, -0.2));
-  R(239, 134, 5, 14, shade(C.sofa, -0.15));
-  R(306, 134, 5, 14, shade(C.sofa, -0.15));
-  R(244, 147, 2, 2, C.deskLeg);
-  R(304, 147, 2, 2, C.deskLeg);
+  R(242, 150, 66, 11, C.sofa);
+  R(242, 150, 66, 1.5, shade(C.sofa, 0.25));
+  for (let i = 1; i < 4; i++) R(242 + i * 16.5, 152, 0.6, 8, shade(C.sofa, -0.2));
+  R(239, 148, 5, 14, shade(C.sofa, -0.15));
+  R(306, 148, 5, 14, shade(C.sofa, -0.15));
+  R(244, 161, 2, 2, C.deskLeg);
+  R(304, 161, 2, 2, C.deskLeg);
 }
 
 
@@ -122,4 +123,95 @@ export function plant(x, y) {
   R(x - 1, y - 18, 3, 11, C.plantDark);
   R(x + 2, y - 15, 3, 8, C.plant);
   R(x - 3, y - 11, 2, 4, C.plantDark);
+}
+
+
+/**
+ * Glass front wall of a back room, drawn over the people inside it. Door gap with a plaque;
+ * the manager's office has half-closed blinds.
+ */
+export function drawGlassFront(room, label, blinds) {
+  const top = GLASS_Y - 22;
+  const x1 = room.x + room.w + (room.x ? 1 : 0);
+  const [d0, d1] = room.door;
+  for (const [a, b] of [[room.x, d0], [d1, x1]]) {
+    if (b <= a) continue;
+    R(a, top, b - a, 22, C.glass);
+    if (blinds) for (let y = top + 1.5; y < top + 11; y += 2) R(a, y, b - a, 0.8, C.blinds);
+    R(a, top, b - a, 1.2, C.glassFrame);
+    R(a, GLASS_Y - 1, b - a, 3, C.trim);
+    for (let x = a; x < b; x += 16) R(x, top, 1, 22, C.glassFrame);
+    R(b - 1, top, 1, 22, C.glassFrame);
+    // reflection
+    R(a + 3, top + 4, 1, 8, 'rgba(255,255,255,0.18)');
+  }
+  // door frame and plaque
+  R(d0 - 1, top - 2, 2, 24, C.trim);
+  R(d1 - 1, top - 2, 2, 24, C.trim);
+  R(d0 - 1, top - 2, d1 - d0 + 2, 1.5, C.trim);
+  const pw = label.length * 1.6 + 3;
+  R((d0 + d1) / 2 - pw / 2, top - 6, pw, 4, C.trim);
+  text(label, (d0 + d1) / 2, top - 3, 2.4, C.paper);
+}
+
+export const drawManagerGlass = () => drawGlassFront(ROOMS.manager, 'VEDOUCÍ', true);
+export const drawConferenceGlass = () => drawGlassFront(ROOMS.conference, 'ZASEDAČKA', false);
+
+
+/** Conference table with chairs on both sides and some papers. */
+export function drawConferenceTable() {
+  for (let i = 0; i < 4; i++) {
+    const x = 82 + i * 16;
+    R(x, 76, 8, 3, C.chair);
+    R(x + 1, 79, 6, 1, C.chairDark);
+  }
+  R(74, 58, 68, 2, shade(C.deskTop, 0.15));
+  R(74, 60, 68, 10, C.deskTop);
+  R(74, 70, 68, 4, C.deskFront);
+  R(75, 74, 2, 2, C.deskLeg);
+  R(139, 74, 2, 2, C.deskLeg);
+  R(84, 62, 6, 4, C.white);
+  R(110, 63, 7, 4, C.paper);
+  R(111, 64, 5, 0.6, C.metal);
+  R(128, 61, 3, 3, C.white);
+  R(128, 61, 3, 1, C.blue);
+}
+
+/** Reception counter by the entrance: monitor (back side), bell, name plate, candy jar. */
+export function drawReception(t) {
+  R(232, 52, 10, 8, C.frame);
+  R(236, 60, 2, 2, C.metalDark);
+  R(230, 58, 50, 4, C.deskTop);
+  R(230, 58, 50, 1, shade(C.deskTop, 0.2));
+  R(230, 62, 50, 13, C.deskFront);
+  R(230, 62, 50, 1, C.deskEdge);
+  R(240, 66, 30, 5, C.deskEdge);
+  text('RECEPCE', 255, 70, 2.6, C.paper);
+  // bell
+  R(258, 56, 4, 2, C.yellow);
+  R(257, 58, 6, 0.8, C.metalDark);
+  // candy jar
+  R(270, 54, 5, 4, 'rgba(244,244,244,0.7)');
+  R(271, 56, 1, 1, C.red);
+  R(273, 55.5, 1, 1, C.lime);
+  R(270, 53, 5, 1, C.blue);
+  // little plant
+  R(276, 54, 3, 4, C.pot);
+  R(276, 51 + Math.sin(t) * 0.2, 1, 3, C.plant);
+  R(278, 52, 1, 2, C.plantDark);
+}
+
+
+/** The copier – what else would a paper company have in the break room. */
+export function drawCopier(t, busy) {
+  R(200, 96, 18, 6, C.metal);
+  R(201, 95, 16, 1.5, shade(C.metal, 0.2));
+  R(200, 102, 18, 14, shade(C.metal, -0.1));
+  R(202, 104, 14, 3, C.metalDark);
+  R(202, 108, 14, 3, C.metalDark);
+  R(203, 99, 4, 2, C.ink);
+  R(213, 98.5, 1.5, 1.5, busy && Math.floor(t * 4) % 2 ? C.green : C.lime);
+  R(204, 93.5, 8, 2, C.white);
+  R(201, 116, 2, 1, C.deskLeg);
+  R(215, 116, 2, 1, C.deskLeg);
 }
