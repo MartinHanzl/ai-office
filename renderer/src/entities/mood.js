@@ -105,7 +105,7 @@ export function updateMood(w, dt) {
   const idle = w.idle?.arrived ? w.idle.kind : null;
   if (idle === 'coffee') de += 0.012;
   if (idle === 'nap') de += 0.02;
-  if (idle === 'sofa' || idle === 'chat') de += 0.006;
+  if (idle === 'sofa' || idle === 'chat' || idle === 'cafe' || idle === 'stool' || idle === 'pouf') de += 0.006;
   let dv = (0.1 - m.valence) * 0.01;
   if (w.waiting && now() - m.waitingSince > 60_000) dv -= 0.004;
   if (idle === 'window') dv += 0.01;

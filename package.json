@@ -16,7 +16,9 @@
     "test": "npm run -s lint && npm run -s test:unit && npm run -s test:smoke",
     "test:unit": "node --test \"test/*.test.js\" \"test/*.test.mjs\"",
     "test:smoke": "node scripts/smoke.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "sync-maps": "node scripts/sync-maps.js",
+    "preview": "node scripts/preview.js"
   },
   "devDependencies": {
     "electron": "^45.2.2",

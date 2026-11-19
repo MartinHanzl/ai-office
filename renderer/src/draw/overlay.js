@@ -1,4 +1,4 @@
-/** Speech bubbles, name tags and indicators drawn above the scene. */
+/** Speech bubbles, name tags and indicators drawn above the scene (only for the people of the floor shown). */
 import { H, OX, OY, R, S, W, ctx, measure, text, truncate } from '../core/canvas.js';
 import { C } from '../core/palette.js';
 import { clamp } from '../core/util.js';
@@ -8,6 +8,7 @@ import { strikeActive } from '../limits.js';
 import { state, workers } from '../state.js';
 import { TASK_BOARD } from '../world/layout.js';
 import { EMOTIONS, showEmote } from '../entities/mood.js';
+import { floorOf } from './people.js';
 
 export const BUBBLE_STYLE = {
   info: { bg: C.white, fg: C.ink },
@@ -60,17 +61,26 @@ function drawDirectorOverlay() {
 }
 
 
-export function drawOverlay(t) {
-  drawDirectorOverlay();
-  const list = [...workers.values()].filter((w) => !w.gone);
+/** Seated somewhere soft (sofa, armchair, pouf…): no name tag at the feet, it would cover the upholstery. */
+const LOUNGING = new Set(['sofa', 'armchair', 'pouf', 'stool', 'cafe', 'booth']);
+
+/** Bubbles, name tags and indicators of the people on `floor` (default: the floor shown). */
+export function drawOverlay(t, floor = state.floor) {
+  if (floorOf(director) === floor) drawDirectorOverlay();
+  const list = [...workers.values()].filter((w) => !w.gone && floorOf(w) === floor);
   // waiting bubbles last so they stay on top
   list.sort((a, b) => Number(a.waiting) - Number(b.waiting));
+  // interns may lag behind their boss on the other floor
+  for (const w of workers.values()) {
+    for (const i of w.interns) if (i.bubble && !i.gone && floorOf(i) === floor) bubble(i.x, i.y - 22, i.bubble.text, i.bubble.kind, 3.4);
+  }
 
   for (const w of list) {
-    const atDesk = w.place === 'desk' && !w.walking && w.seat.desk;
-    const anchorY = atDesk ? w.seat.desk.deskY - 14 : w.y - 27;
+    const seated = w.place === 'desk' && !w.walking;
+    const atDesk = seated && w.seat.kind === 'desk';
+    const anchorY = w.y - 27;
 
-    const onSofa = w.idle?.kind === 'sofa' || (w.seat.sofa && w.place === 'desk');
+    const onSofa = (w.place === 'spot' && LOUNGING.has(w.idle?.kind)) || (seated && LOUNGING.has(w.seat.kind));
     const selected = w.id === state.chatOpen;
     if (selected || (!w.walking && !onSofa)) {
       const project = w.source !== 'Claude' && !w.project.includes('·') ? `${w.source} · ${w.project}` : w.project;
@@ -86,8 +96,8 @@ export function drawOverlay(t) {
       if (w.context >= 90) R(w.x - 6.5, w.y - 21 + ((p + 0.5) % 1) * 6, 1, 1.5, `rgba(115,239,247,${1 - ((p + 0.5) % 1)})`);
     }
 
-    // on strike: picket sign
-    if (strikeActive() && w.isFree && !w.walking && (w.place === 'spot' && w.idle?.kind !== 'sofa')) {
+    // on strike: picket sign (not while seated somewhere)
+    if (strikeActive() && w.isFree && !w.walking && w.place === 'spot' && !LOUNGING.has(w.idle?.kind)) {
       R(w.x + 6.5, w.y - 30, 0.8, 16, C.deskEdge);
       R(w.x + 0.5, w.y - 37, 14, 7, C.ink);
       R(w.x + 1, w.y - 36.5, 13, 6, C.white);
@@ -113,9 +123,6 @@ export function drawOverlay(t) {
       }
     }
 
-    for (const i of w.interns) {
-      if (i.bubble) bubble(i.x, i.y - 22, i.bubble.text, i.bubble.kind, 3.4);
-    }
     if (w.bubble) {
       const kind = w.bubble.kind;
       const flash = kind === 'alert' && Math.floor(t * 2) % 2 === 0;

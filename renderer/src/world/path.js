@@ -188,10 +188,11 @@ export function randomPoint(grid, rng = Math.random, area = null) {
 
 /**
  * Path from `from` to `to` (both may lie inside furniture, e.g. a chair or sofa seat).
- * Every call differs: cell costs are noisy and longer walks may detour through a random point.
+ * Every call differs: cell costs are noisy and longer walks may detour through a random point
+ * (only one `viaOk(x, y)` accepts, when given – e.g. not in a room neither end is in).
  * Returns the waypoints after `from`, ending exactly at `to`.
  */
-export function findPath(grid, from, to, { rng = Math.random, noise = 0.8, detour = 0.5 } = {}) {
+export function findPath(grid, from, to, { rng = Math.random, noise = 0.8, detour = 0.5, viaOk = null } = {}) {
   const a = nearestWalkable(grid, from.x, from.y);
   const b = nearestWalkable(grid, to.x, to.y);
   if (!a || !b) return [{ x: to.x, y: to.y }];
@@ -204,7 +205,8 @@ export function findPath(grid, from, to, { rng = Math.random, noise = 0.8, detou
         x: Math.min(a.x, b.x) - 30, y: Math.min(a.y, b.y) - 25,
         w: Math.abs(a.x - b.x) + 60, h: Math.abs(a.y - b.y) + 50,
       });
-      if (!via || Math.hypot(via.x - a.x, via.y - a.y) + Math.hypot(b.x - via.x, b.y - via.y) > direct * 1.45) continue;
+      if (!via || (viaOk && !viaOk(via.x, via.y))) continue;
+      if (Math.hypot(via.x - a.x, via.y - a.y) + Math.hypot(b.x - via.x, b.y - via.y) > direct * 1.45) continue;
       const p1 = astar(grid, a, via, noise, rng);
       const p2 = p1 && astar(grid, via, b, noise, rng);
       if (p2) core = [...smooth(grid, p1), ...smooth(grid, p2).slice(1)];

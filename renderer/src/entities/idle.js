@@ -3,7 +3,7 @@ import { DIALOGS } from '../content/texts.js';
 import { now, rand, randItem } from '../core/util.js';
 import { strikeActive } from '../limits.js';
 import { convos, workers } from '../state.js';
-import { chatPair } from '../world/layout.js';
+import { chatPair, otherFloor } from '../world/layout.js';
 import { moodEvent, moodIdleWeights } from './mood.js';
 
 /** How many times two employees (by project key) chatted – two chats make them friends. */
@@ -19,7 +19,8 @@ export class Convo {
     this.dialog = randItem(DIALOGS);
     this.idx = 0;
     this.nextAt = 0;
-    this.until = now() + rand(18_000, 35_000);
+    this.span = rand(18_000, 35_000); // how long they talk, from when both are there (maybe from different floors)
+    this.until = 0;
     this.ended = false;
     convos.add(this);
     a.startIdle('chat', 3600, { spot: pair[0], convo: this });
@@ -30,6 +31,7 @@ export class Convo {
 
   tick(t) {
     if (this.ended || !this.a.idle?.arrived || !this.b.idle?.arrived) return;
+    this.until ||= t + this.span;
     if (t >= this.until) {
       this.finish();
       return;
@@ -80,8 +82,8 @@ export class Convo {
 export function findPartner(w) {
   const candidates = [...workers.values()].filter((o) => o !== w && o.isFree && !o.ghost && !o.idle?.convo && !o.walking);
   if (!candidates.length) return null;
-  // friends are three times as likely to be picked
-  const pool = candidates.flatMap((o) => (areFriends(w, o) ? [o, o, o] : [o]));
+  // friends are three times as likely to be picked, colleagues on the same floor twice
+  const pool = candidates.flatMap((o) => Array((areFriends(w, o) ? 3 : 1) * (o.floor === w.floor ? 2 : 1)).fill(o));
   return randItem(pool);
 }
 
@@ -97,6 +99,10 @@ export function pickIdle(w) {
     { kind: 'sit', weight: 1, secs: [10, 30] },
     { kind: 'stroll', weight: 1.5 * mood.stroll, secs: [20, 50] },
     { kind: 'window', weight: 0.5 * mood.window, secs: [15, 40] },
+    { kind: 'booth', weight: 0.8, secs: [15, 45] },                 // a phone call in a booth upstairs
+    { kind: 'cafe', weight: 1 * mood.sofa, secs: [30, 80] },        // sits at a klubovna table downstairs
+    { kind: 'stool', weight: 0.8 * mood.coffee, secs: [20, 50] },   // sits at the bar
+    { kind: 'pouf', weight: 0.4, secs: [10, 25] },                  // sits on the pouf by the hooks
     { kind: 'nap', weight: freeFor > 3 * 60_000 || w.mood.energy < -0.4 ? 3 * mood.nap : 0, secs: [60, 180] },
   ];
   if (strikeActive()) {
@@ -111,9 +117,9 @@ export function pickIdle(w) {
     if (choice.weight === 0) continue;
     if (choice.kind === 'chat') {
       const partner = findPartner(w);
-      // somewhere else every time, away from the others who are slacking
+      // somewhere else every time, away from the others who are slacking, mostly on the employee's floor
       const busy = [...workers.values()].map((o) => o.idle?.spot).filter(Boolean);
-      const pair = partner && chatPair(busy);
+      const pair = partner && chatPair(busy, Math.random() < 0.75 ? w.floor : otherFloor(w.floor));
       if (partner && pair) {
         new Convo(w, partner, pair);
         return;

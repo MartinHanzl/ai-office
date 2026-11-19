@@ -784,10 +784,29 @@ if (!app.requestSingleInstanceLock()) {
       runDemo();
       // Optional JS run in the renderer mid-scenario (e.g. to force a behaviour for a screenshot).
       if (process.env.AI_OFFICE_EVAL) setTimeout(() => mainWin.webContents.executeJavaScript(process.env.AI_OFFICE_EVAL), 8000);
+      // Optional captures mid-run before the final one, e.g. the other floor: '[[14500, "/tmp/office-ground.png"]]'
+      let extra = [];
+      try {
+        extra = JSON.parse(process.env.AI_OFFICE_SCREENSHOT_EXTRA || '[]');
+      } catch {
+        console.error('[ai-office] AI_OFFICE_SCREENSHOT_EXTRA is not JSON – no extra screenshots');
+      }
+      const capture = async (file) => {
+        try {
+          fs.writeFileSync(file, (await mainWin.webContents.capturePage()).toPNG());
+        } catch (err) {
+          console.error(`[ai-office] screenshot ${file} failed: ${err.message}`);
+        }
+      };
+      // [delay ms, file] pairs; anything else is skipped, so the final capture and quit below always happen
+      const shots = (Array.isArray(extra) ? extra : []).filter((e) => Array.isArray(e) && typeof e[1] === 'string' && e[1]);
+      if (!Array.isArray(extra) || shots.length < extra.length) {
+        console.error('[ai-office] AI_OFFICE_SCREENSHOT_EXTRA: expected [[delay ms, "file.png"], …] – skipped what is not');
+      }
+      for (const [delay, file] of shots) setTimeout(() => capture(path.resolve(file)), Number(delay) || 0);
       setTimeout(async () => {
-        const img = await mainWin.webContents.capturePage();
-        fs.writeFileSync(shot, img.toPNG());
-        app.quit();
+        await capture(path.resolve(shot));
+        app.quit(); // even when the capture failed: a test run must end
       }, Number(process.env.AI_OFFICE_SCREENSHOT_DELAY) || 11000);
     }
   });

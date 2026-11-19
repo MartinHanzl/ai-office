@@ -3,6 +3,7 @@
  * ones from Claude desktop or a terminal), the items of the opened ones, drafts, search, what's open.
  */
 import { state } from '../state.js';
+import { followWorker } from '../ui/floor.js';
 import { ipcError } from './lib.js';
 
 const PANEL_KEY = 'ai-office:panel';
@@ -221,6 +222,7 @@ let opening = 0;
 export async function openChat(id) {
   if (!window.office?.chat || typeof id !== 'string' || !id) return;
   const ticket = ++opening;
+  const floorShown = state.floor;
   // conversations from elsewhere get no live updates: read again each time (you may have gone on in the terminal)
   const fresh = !chat.items.has(id) || chat.sessions.get(id)?.managed === false;
   if (fresh) pending.set(id, pending.get(id) ?? []);
@@ -250,6 +252,7 @@ export async function openChat(id) {
   chat.error = null;
   state.chatOpen = id;
   state.todosOpen = false;
+  if (state.floor === floorShown) followWorker(id); // its employee may be on the other floor (unless you switched meanwhile)
   changed();
 }
 

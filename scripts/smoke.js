@@ -2,14 +2,17 @@
 'use strict';
 /**
  * Smoke test: starts the app on a spare port with an isolated profile, plays the demo,
- * forces the remaining states (idle chat, strike, night, the director's to-do list, stats panel)
- * and fails when the renderer logs an error. Leaves a screenshot for a visual check.
+ * forces the remaining states (idle chat, strike, night, the director's to-do list, stats panel),
+ * shows both floors (the switch by a click and by a key) and fails when the renderer logs an error.
+ * Leaves a screenshot of each floor for a visual check: the upper floor at the end, the ground floor
+ * at night during the strike (`-ground` suffix).
  */
 const { spawn } = require('node:child_process');
 const os = require('node:os');
 const path = require('node:path');
 
 const shot = process.env.AI_OFFICE_SCREENSHOT || path.join(os.tmpdir(), 'ai-office-smoke.png');
+const groundShot = shot.replace(/(\.png)?$/i, '-ground.png');
 const root = path.join(__dirname, '..');
 const evalCode = `(() => {
   const o = window.__office;
@@ -25,6 +28,33 @@ const evalCode = `(() => {
     setTimeout(() => o.openChat(copy), 1500);
   }, 500);
   // runs 8 s after start (see main.js); delays below are relative to that
+  // two floors: down by a click on the ▼ arrow (day, newcomers and interns coming in), up again by PageUp,
+  // down once more at night during the strike for the -ground screenshot (14.6 s), then upstairs to the end
+  const clickAt = (lx, ly) => {
+    const c = document.getElementById('scene');
+    const r = c.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const s = Math.min(c.width / 320, c.height / 180);
+    const ox = Math.round((c.width - 320 * s) / 2);
+    const oy = Math.round((c.height - 180 * s) / 2);
+    c.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + (ox + lx * s) / dpr, clientY: r.top + (oy + ly * s) / dpr }));
+    c.dispatchEvent(new MouseEvent('mouseleave')); // no tooltip left in the screenshots
+  };
+  const expectFloor = (floor, how) => {
+    if (o.state.floor !== floor) console.error(\`floor switch: \${how} did not show the \${floor} floor\`);
+  };
+  setTimeout(() => {
+    const u = o.floors[o.state.floor].map.items.find((i) => i.type === 'floorSwitch');
+    clickAt(u.x + u.w * 0.75, u.y + u.h / 2);
+    expectFloor('ground', 'a click on ▼');
+  }, 200);
+  setTimeout(() => {
+    document.activeElement?.blur(); // the keys are for text fields while one has the focus
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'PageUp', cancelable: true }));
+    expectFloor('upper', 'PageUp');
+  }, 3500);
+  setTimeout(() => o.showFloor('ground'), 5300);
+  setTimeout(() => o.showFloor('upper'), 6900);
   setTimeout(() => {
     const free = [...o.workers.values()];
     if (free.length >= 2) new o.Convo(free[0], free[1], o.CHAT_PAIRS[0]);
@@ -68,6 +98,7 @@ const child = spawn(electron, ['.'], {
     AI_OFFICE_PORT: process.env.AI_OFFICE_PORT || '4798',
     AI_OFFICE_SCREENSHOT: shot,
     AI_OFFICE_SCREENSHOT_DELAY: '17500',
+    AI_OFFICE_SCREENSHOT_EXTRA: JSON.stringify([[14600, groundShot]]),
     AI_OFFICE_EVAL: evalCode,
   },
 });
@@ -88,5 +119,5 @@ child.on('exit', (code) => {
     console.error(`✖ smoke test failed (${errors} renderer errors, exit ${code})`);
     process.exit(1);
   }
-  console.log(`✔ smoke test passed – screenshot: ${shot}`);
+  console.log(`✔ smoke test passed – screenshots: ${shot}, ${groundShot}`);
 });

@@ -1,7 +1,7 @@
 /**
- * The director – that's you. Has no desk: walks about the glass office, paces on the phone and rummages
- * in the filing cabinet. Keeps the to-do list (Todoist) on a whiteboard on wheels; new deadlines send
- * the director to the board with a marker.
+ * The director – that's you. Has no desk: lives in the glass meeting room upstairs, walks about it, paces on
+ * the phone and watches the meeting-room TV. Keeps the to-do list (Todoist) on the task board on the back wall;
+ * new deadlines send the director to the board with a marker.
  */
 import { DIRECTOR_LINES } from '../content/texts.js';
 import { now, rand, randItem } from '../core/util.js';
@@ -10,7 +10,7 @@ import { OFFICE_SPOTS, SPEED, randomOfficePoint } from '../world/layout.js';
 import { lookFor } from './look.js';
 import { Person } from './person.js';
 
-/** Walks inside the office: no random detours (those could lead out of the door and back). */
+/** Walks inside the meeting room: no random detours (those could lead out of the door and back). */
 const INDOORS = { detour: 0 };
 
 /**
@@ -21,7 +21,7 @@ const INDOORS = { detour: 0 };
 const BEATS = {
   stroll: { secs: [15, 40], pause: [2, 6] },                                // walks around, stops and looks about
   phone: { secs: [8, 18], pause: [0.3, 1.5] },                              // paces while on the phone
-  cabinet: { secs: [8, 15], spot: 'cabinet', arms: ['type'] },              // rummages in the filing cabinet
+  tv: { secs: [8, 15], spot: 'tv', arms: ['down', 'think'] },               // watches the meeting-room TV
   board: { secs: [6, 12], spot: 'board', arms: ['draw', 'draw', 'think'] }, // writes on the task board, or ponders it
 };
 
@@ -38,7 +38,7 @@ class Director extends Person {
     this.nextBeatAt = now() + rand(1000, 3000);
     this.todos = { configured: false, overdue: 0, today: 0, week: 0, total: 0, error: null };
     this.boardFx = [];      // notes popping up / struck out on the task board { col, kind, from, at }
-    this.placeAt({ x: 40, y: 78 });
+    this.placeAt(randomOfficePoint() ?? OFFICE_SPOTS.glass); // upstairs, in the meeting room
   }
 
   /** Facial expression follows the deadlines. */
@@ -69,7 +69,7 @@ class Director extends Person {
     const { configured, overdue, today, week } = this.todos;
     const pending = configured ? overdue + today + week : 0;
     // with nothing pending still glances at the board now and then
-    const options = [['stroll', 3], ['phone', 1.5], ['cabinet', 1], ['board', pending ? 1.5 : 0.3]];
+    const options = [['stroll', 3], ['phone', 1.5], ['tv', 1], ['board', pending ? 1.5 : 0.3]];
     let roll = Math.random() * options.reduce((n, [, w]) => n + w, 0);
     const kind = options.find(([, w]) => (roll -= w) < 0)?.[0] ?? 'stroll';
     this.startBeat(kind);

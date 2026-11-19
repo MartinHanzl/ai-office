@@ -1,18 +1,21 @@
-/** Cleaning robot roaming the empty office. */
+/** Cleaning robot roaming the empty office (upstairs). */
 import { R } from '../core/canvas.js';
 import { C } from '../core/palette.js';
 import { now, rand } from '../core/util.js';
 import { workers } from '../state.js';
-import { isWalkable } from '../world/layout.js';
+import { floors, isWalkable } from '../world/layout.js';
 
-export const robot = { x: 110, y: 134, angle: 0.7, turnAt: 0 };
+const start = floors.upper.openAreas[0];
+
+/** Starts in the middle of the biggest open area upstairs; `floor` lets the loop draw it only there. */
+export const robot = { x: start.x + start.w / 2, y: start.y + start.h / 2, floor: 'upper', angle: 0.7, turnAt: 0 };
 
 
 export function updateRobot(dt) {
   if (workers.size > 0) return;
   const nx = robot.x + Math.cos(robot.angle) * 14 * dt;
   const ny = robot.y + Math.sin(robot.angle) * 14 * dt;
-  if (isWalkable(nx, ny)) {
+  if (isWalkable(nx, ny, robot.floor)) {
     robot.x = nx;
     robot.y = ny;
   } else {

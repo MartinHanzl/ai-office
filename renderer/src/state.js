@@ -11,6 +11,7 @@ export const state = {
   chatOpen: null,        // session whose conversation panel is open (highlighted in the office)
   todosOpen: false,      // the director's to-do panel is open (in place of a conversation)
   panelOpen: true,       // the conversation list shows when neither is open (chat/store.js keeps it in localStorage)
+  floor: 'upper',        // floor shown: 'ground' | 'upper' (world/layout.js FLOOR_NAMES, DEFAULT_FLOOR)
 };
 
 // ---- idle behaviour selection & conversations

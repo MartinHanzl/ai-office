@@ -1,33 +1,58 @@
-/** Bajt, the office cat. */
+/** Bajt, the office cat. Lives upstairs (`cat.floor`) and never takes the stairs. */
 import { play } from '../audio.js';
 import { R } from '../core/canvas.js';
 import { C } from '../core/palette.js';
 import { clamp, now, rand, randItem } from '../core/util.js';
 import { hearts } from './particles.js';
 import { workers } from '../state.js';
-import { DESKS, randomFloorPoint, route } from '../world/layout.js';
+import { DESKS, IDLE_POOLS, floors } from '../world/layout.js';
+import { CELL } from '../world/map.js';
 
 export const CAT_SPEED = 22;
 
-export const cat = { x: 130, y: 134, path: [], state: 'sit', next: 'sit', until: 0, dir: 1, step: 0, onTop: 0, pendingTop: 0, bubble: null };
+const home = floors.upper;
+
+/** Drawn height of the tops the cat jumps on (px, as draw/office/furniture.js draws the pieces). */
+const LIFT = { printer: 11, drawers: 9, desk: 5 };
+
+/** The middle of a piece's top face, with the depth boost that draws the cat over the piece (drawn at `depthY`). */
+function onTopOf(rect, depthY, lift) {
+  const y = rect.y + rect.h / 2 - lift;
+  return { x: rect.x + rect.w / 2, y, onTop: depthY + 1 - y };
+}
+
+const glass = home.map.of('glassFloor')[0];
+
+export const cat = {
+  x: glass ? glass.x + glass.w / 2 : home.stairs.x, y: glass ? glass.y + glass.h / 2 : home.stairs.y, floor: home.name,
+  path: [], state: 'sit', next: 'sit', until: 0, dir: 1, step: 0, onTop: 0, pendingTop: 0, bubble: null,
+};
 
 
+/** Favourite places upstairs: the glass floor panel, on the printer, on the drawers, by the windows, empty desks. */
 export function catSpots() {
-  const spots = [
-    { x: 270, y: 141 },             // rug in front of the TV
-    { x: 262, y: 118, onTop: 2 },   // on top of the TV cabinet
-    { x: 209, y: 97, onTop: 20 },   // on the warm copier
-    { x: 266, y: 59, onTop: 17 },   // on the reception counter
-  ];
+  const m = home.map;
+  const spots = [];
+  if (glass) spots.push({ x: glass.x + glass.w / 2, y: glass.y + glass.h / 2 });
+  for (const type of ['printer', 'drawers']) {
+    const it = m.of(type)[0];
+    if (it) spots.push({ ...onTopOf(it, it.y + it.h, LIFT[type]), via: home.named[type] });
+  }
+  for (const w of IDLE_POOLS.window) {
+    const x = home.isWalkable(w.x + CELL, w.y) ? w.x + CELL : w.x - CELL;
+    spots.push({ x, y: w.y });
+  }
   for (const d of DESKS) {
-    if (!d.owner) spots.push({ x: d.cx + 5, y: d.deskY + 5, onTop: 13 }); // on an empty desk's keyboard
+    if (!d.owner) spots.push({ ...onTopOf(d.desk, d.item.y + d.item.h, LIFT.desk), via: d }); // on an empty desk's keyboard
   }
   return spots;
 }
 
 
-export function catGo(x, y, next, onTop = 0) {
-  cat.path = route({ x: cat.x, y: cat.y }, { x, y });
+/** Walk to (x, y); `via` = a floor point to jump up from (onto furniture). */
+export function catGo(x, y, next, onTop = 0, via = null) {
+  const from = { x: cat.x, y: cat.y, floor: cat.floor };
+  cat.path = via ? [...home.route(from, via), { x, y }] : home.route(from, { x, y });
   cat.next = next;
   cat.pendingTop = onTop;
   cat.onTop = 0;
@@ -37,15 +62,15 @@ export function catGo(x, y, next, onTop = 0) {
 
 export function chooseCatTarget() {
   const roll = Math.random();
-  const visitable = [...workers.values()].filter((w) => !w.gone && !w.walking);
+  const visitable = [...workers.values()].filter((w) => !w.gone && !w.walking && w.floor === cat.floor);
   if (roll < 0.35) {
     const s = randItem(catSpots());
-    catGo(s.x, s.y, 'sleep', s.onTop);
+    catGo(s.x, s.y, 'sleep', s.onTop ?? 0, s.via ?? null);
   } else if (roll < 0.6 && visitable.length) {
     const w = randItem(visitable);
     catGo(clamp(w.x + randItem([-9, 9]), 6, 314), w.y + 2, 'sit');
   } else {
-    const p = randomFloorPoint({ x: 0, y: 48, w: 320, h: 132 });
+    const p = home.randomPoint();
     if (p) catGo(p.x, p.y, 'sit');
   }
 }
@@ -90,7 +115,7 @@ export function updateCat(dt) {
 
 export function petCat() {
   cat.bubble = { text: randItem(['Prrr ❤', 'Mňau ❤', 'Prrrrr…']), until: now() + 2500 };
-  hearts(cat.x, cat.y - 8);
+  hearts(cat.x, cat.y - 8, 4, cat.floor);
   if (cat.state === 'sleep') {
     cat.state = 'sit';
     cat.until = now() + 6000;

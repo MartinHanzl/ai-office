@@ -1,7 +1,8 @@
 /**
- * The director's task board: a whiteboard on wheels in the manager's office. One sticky note per to-do task
- * in three columns (overdue, due today, due within the week) – the amount at a glance, no numbers.
- * New notes pop up, finished ones are struck out before they disappear (director.boardFx).
+ * The director's task board: a whiteboard on the meeting-room wall (`X`, TASK_BOARD). One sticky note per
+ * to-do task in three columns (overdue, due today, due within the week) – the amount at a glance, no numbers.
+ * New notes pop up, finished ones are struck out before they disappear (director.boardFx). Sizes itself to
+ * the rect it gets (about 36×28 px).
  */
 import { R, text } from '../core/canvas.js';
 import { C } from '../core/palette.js';
@@ -43,13 +44,15 @@ function smiley(cx, cy) {
   R(cx - 1.5, cy + 1.5, 3, 1, C.green);
 }
 
-function drawColumn(c, count, fx, t) {
-  const { x, y } = TASK_BOARD;
-  const cx = x + 1 + c * 12;
+function drawColumn(rect, c, count, fx, t) {
+  const { x, y, w, h } = rect;
+  const colW = (w - 2) / 3;
+  const cx = x + 1 + c * colW;
   const col = COLUMNS[c];
-  if (c > 0) R(cx, y + 5, 0.5, TASK_BOARD.h - 8, C.metal);
-  text(col.label, cx + 6, y + 4.3, 2.2, col.labelColor);
-  const pos = (i) => [cx + 1.5 + (i % 2) * 5, y + 6.5 + Math.floor(i / 2) * 4.5 + (i % 2) * 0.3];
+  if (c > 0) R(cx, y + 5, 0.5, h - 8, C.metal);
+  text(col.label, cx + colW / 2, y + 4.3, 2.2, col.labelColor);
+  const step = Math.min(4.5, (h - 10) / 4);
+  const pos = (i) => [cx + colW / 2 - 4.5 + (i % 2) * 5, y + 6.5 + Math.floor(i / 2) * step + (i % 2) * 0.3];
   const shown = Math.min(count, MAX_NOTES);
   for (let i = 0; i < shown; i++) {
     const [nx, ny] = pos(i);
@@ -71,15 +74,10 @@ function drawColumn(c, count, fx, t) {
 }
 
 
-export function drawTaskBoard(director) {
-  const { x, y, w, h } = TASK_BOARD;
+/** The task board in `rect` (defaults to the world's TASK_BOARD). */
+export function drawTaskBoard(director, rect = TASK_BOARD) {
+  const { x, y, w, h } = rect;
   const t = now();
-  // stand on wheels
-  R(x + 3, y + h, 1.5, 9, C.metalDark);
-  R(x + w - 4.5, y + h, 1.5, 9, C.metalDark);
-  R(x + 3, y + h + 5, w - 6, 1, C.metalDark);
-  R(x + 2.5, y + h + 9, 2.5, 1.5, C.ink);
-  R(x + w - 5, y + h + 9, 2.5, 1.5, C.ink);
   // board with a marker tray
   R(x, y, w, h, C.metalDark);
   R(x + 1, y + 1, w - 2, h - 2, C.white);
@@ -93,6 +91,6 @@ export function drawTaskBoard(director) {
     return;
   }
   const fx = director.boardFx.filter((f) => t - f.at < STRIKE_MS);
-  COLUMNS.forEach((col, c) => drawColumn(c, todos[col.key] ?? 0, fx.find((f) => f.col === col.key), t));
+  COLUMNS.forEach((col, c) => drawColumn(rect, c, todos[col.key] ?? 0, fx.find((f) => f.col === col.key), t));
   if (!todos.overdue && !todos.today && !todos.week && !fx.length) smiley(x + w / 2, y + h / 2);
 }
