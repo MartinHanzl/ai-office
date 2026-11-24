@@ -33,7 +33,7 @@ export function handle(ev) {
       lw.setProfile(ev.profile);
       lw.say(`⭐ Povýšení: ${ev.profile.title}!`, 5, 'ok');
       moodEvent(lw, 'levelUp');
-      confetti(lw.x, lw.y - 20, 50);
+      confetti(lw.x, lw.y - 20, 50, lw.floor);
       fanfare();
     }
     return;
@@ -121,11 +121,11 @@ export function handle(ev) {
 }
 
 
-/** git commit / push celebration: confetti and applause from colleagues with nothing to do. */
+/** git commit / push celebration: confetti (on the employee's floor) and applause from colleagues with nothing to do. */
 export function celebrate(w, kind) {
   w.say(kind === 'push' ? '🚀 Push!' : '🎉 Commit!', 3, 'ok');
   moodEvent(w, 'celebrate');
-  confetti(w.x, w.y - 20, kind === 'push' ? 45 : 30);
+  confetti(w.x, w.y - 20, kind === 'push' ? 45 : 30, w.floor);
   pop();
   let delay = 400;
   for (const other of workers.values()) {
@@ -140,7 +140,7 @@ export function restore(sessions) {
   for (const s of sessions) {
     // live events may arrive before the snapshot does – those sessions already exist
     if (workers.has(s.id)) continue;
-    const w = new Worker({ sessionId: s.id, name: s.name, source: s.source, cwd: s.cwd, project: s.project, profile: s.profile, mode: s.mode });
+    const w = new Worker({ sessionId: s.id, name: s.name, source: s.source, cwd: s.cwd, project: s.project, profile: s.profile, mode: s.mode, coverFor: s.coverFor });
     workers.set(w.id, w);
     w.placeAt(w.seat);
     w.place = 'desk';

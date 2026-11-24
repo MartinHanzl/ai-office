@@ -1,11 +1,14 @@
-/** Speech bubbles, name tags and indicators drawn above the scene. */
+/** Speech bubbles, name tags and indicators drawn above the scene (only for the people of the floor shown). */
 import { H, OX, OY, R, S, W, ctx, measure, text, truncate } from '../core/canvas.js';
 import { C } from '../core/palette.js';
 import { clamp } from '../core/util.js';
 import { WORKING } from '../entities/activity.js';
+import { director } from '../entities/director.js';
 import { strikeActive } from '../limits.js';
-import { workers } from '../state.js';
+import { state, workers } from '../state.js';
+import { TASK_BOARD } from '../world/layout.js';
 import { EMOTIONS, showEmote } from '../entities/mood.js';
+import { floorOf } from './people.js';
 
 export const BUBBLE_STYLE = {
   info: { bg: C.white, fg: C.ink },
@@ -33,32 +36,57 @@ export function bubble(x, bottom, str, kind = 'info', size = 4) {
 }
 
 
-export function nameTag(x, y, label, color) {
+export function nameTag(x, y, label, color, selected = false) {
   const size = 3;
   const str = truncate(label, 22);
   const w = Math.ceil(measure(str, size)) + 5;
   const bx = clamp(Math.round(x - w / 2), 1, W - w - 1);
+  if (selected) R(bx - 0.5, y - 0.5, w + 1, 5.5, C.yellow); // whose conversation is open
   R(bx, y, w, 4.5, 'rgba(20,22,42,0.85)');
   R(bx + 1, y + 1.5, 1.5, 1.5, color);
   text(str, bx + 3 + (w - 3) / 2, y + 3.6, size, C.white);
 }
 
 
-export function drawOverlay(t) {
-  const list = [...workers.values()].filter((w) => !w.gone);
+/**
+ * The director: name tag above the head (at the feet it would sit under the bubbles of the desks below
+ * the office), highlighted while the to-do panel is open; bubble above the tag. Standing at a spot with
+ * the back to the room, the tag drops to the feet, and at the task board the bubble goes above the board,
+ * so neither covers the notes. The amount of tasks is on the task board (draw/taskboard.js).
+ */
+function drawDirectorOverlay() {
+  const spot = director.walking ? null : director.beat?.spot;
+  nameTag(director.x, spot ? director.y + 2.5 : director.y - 27, director.name, C.yellow, state.todosOpen);
+  if (director.bubble) bubble(director.x, spot === 'board' ? TASK_BOARD.y - 2 : director.y - 29, director.bubble.text, director.bubble.kind);
+}
+
+
+/** Seated somewhere soft (sofa, armchair, pouf…): no name tag at the feet, it would cover the upholstery. */
+const LOUNGING = new Set(['sofa', 'armchair', 'pouf', 'stool', 'cafe', 'booth']);
+
+/** Bubbles, name tags and indicators of the people on `floor` (default: the floor shown). */
+export function drawOverlay(t, floor = state.floor) {
+  if (floorOf(director) === floor) drawDirectorOverlay();
+  const list = [...workers.values()].filter((w) => !w.gone && floorOf(w) === floor);
   // waiting bubbles last so they stay on top
   list.sort((a, b) => Number(a.waiting) - Number(b.waiting));
+  // interns may lag behind their boss on the other floor
+  for (const w of workers.values()) {
+    for (const i of w.interns) if (i.bubble && !i.gone && floorOf(i) === floor) bubble(i.x, i.y - 22, i.bubble.text, i.bubble.kind, 3.4);
+  }
 
   for (const w of list) {
-    const atDesk = w.place === 'desk' && !w.walking && w.seat.desk;
-    const anchorY = atDesk ? w.seat.desk.deskY - 14 : w.y - 27;
+    const seated = w.place === 'desk' && !w.walking;
+    const atDesk = seated && w.seat.kind === 'desk';
+    const anchorY = w.y - 27;
 
-    const onSofa = w.idle?.kind === 'sofa' || (w.seat.sofa && w.place === 'desk');
-    if (!w.walking && !onSofa) {
+    const onSofa = (w.place === 'spot' && LOUNGING.has(w.idle?.kind)) || (seated && LOUNGING.has(w.seat.kind));
+    const selected = w.id === state.chatOpen;
+    if (selected || (!w.walking && !onSofa)) {
       const project = w.source !== 'Claude' && !w.project.includes('·') ? `${w.source} · ${w.project}` : w.project;
       const label = w.name ? `${w.name} · ${project}` : project;
       const convo = w.idle?.convo;
-      nameTag(w.x, w.y + (convo && convo.b === w ? 7.5 : 2.5), label, w.look.shirt);
+      nameTag(w.x, w.y + (convo && convo.b === w ? 7.5 : 2.5), label, w.look.shirt, selected);
     }
 
     // full context → sweating
@@ -68,8 +96,8 @@ export function drawOverlay(t) {
       if (w.context >= 90) R(w.x - 6.5, w.y - 21 + ((p + 0.5) % 1) * 6, 1, 1.5, `rgba(115,239,247,${1 - ((p + 0.5) % 1)})`);
     }
 
-    // on strike: picket sign
-    if (strikeActive() && w.isFree && !w.walking && (w.place === 'spot' && w.idle?.kind !== 'sofa')) {
+    // on strike: picket sign (not while seated somewhere)
+    if (strikeActive() && w.isFree && !w.walking && w.place === 'spot' && !LOUNGING.has(w.idle?.kind)) {
       R(w.x + 6.5, w.y - 30, 0.8, 16, C.deskEdge);
       R(w.x + 0.5, w.y - 37, 14, 7, C.ink);
       R(w.x + 1, w.y - 36.5, 13, 6, C.white);
@@ -95,9 +123,6 @@ export function drawOverlay(t) {
       }
     }
 
-    for (const i of w.interns) {
-      if (i.bubble) bubble(i.x, i.y - 22, i.bubble.text, i.bubble.kind, 3.4);
-    }
     if (w.bubble) {
       const kind = w.bubble.kind;
       const flash = kind === 'alert' && Math.floor(t * 2) % 2 === 0;

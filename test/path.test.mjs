@@ -54,6 +54,19 @@ test('routes differ between walks but stay reasonably short', () => {
   assert.ok(routes.size >= 4, `only ${routes.size} distinct routes`);
 });
 
+test('a detour leads only through points viaOk accepts', () => {
+  // both ends left of the wall: a detour may still go round through the gap
+  const from = { x: 6, y: 6 };
+  const to = { x: 40, y: 54 };
+  const right = (pts) => pts.some((p) => p.x >= 52);
+  assert.ok(Array.from({ length: 40 }, (_, i) => findPath(grid, from, to, { rng: seeded(300 + i), detour: 1 })).some(right));
+  for (let i = 0; i < 40; i++) {
+    const pts = findPath(grid, from, to, { rng: seeded(300 + i), detour: 1, viaOk: (x) => x < 48 });
+    assertWalkable(from, pts);
+    assert.ok(!right(pts), JSON.stringify(pts));
+  }
+});
+
 test('straight line in an open area needs no waypoints', () => {
   const pts = findPath(grid, { x: 10, y: 50 }, { x: 30, y: 50 }, { noise: 0, detour: 0 });
   assert.deepEqual(pts.at(-1), { x: 30, y: 50 });

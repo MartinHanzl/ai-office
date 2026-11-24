@@ -1,4 +1,7 @@
-/** Employees (agent sessions) and interns (subagents). */
+/**
+ * Employees (agent sessions) and interns (subagents). They come in through the courtyard gate (ground floor),
+ * climb the stairs to their desk upstairs, slack off on either floor and leave the same way.
+ */
 import { GHOST_LINES, IDLE_LINES } from '../content/texts.js';
 import { C } from '../core/palette.js';
 import { clamp, now, rand, randItem } from '../core/util.js';
@@ -10,19 +13,28 @@ import { lookFor } from './look.js';
 import { createMood, updateMood } from './mood.js';
 import { Person } from './person.js';
 import { workers } from '../state.js';
-import { BOARD, DOOR, IDLE_POOLS, claimSeat, internSpot, randomFloorPoint, releaseSeat } from '../world/layout.js';
+import { BOARD, ENTRY, IDLE_POOLS, claimSeat, floors, internSpot, otherFloor, randomFloorPoint, releaseSeat } from '../world/layout.js';
 
 /** After this long without work (terminal still open) an employee turns into a ghost. */
 export const GHOST_AFTER = 5 * 60_000;
 
+const linesFor = (kind) => IDLE_LINES[kind];
+
+/** What strolls stop at now and then (named `+` spots of the plans, on whichever floor the stroll is). */
+const STROLL_STOPS = ['printer', 'drawers', 'bins', 'snack', 'darts', 'reception'];
+
+/** Share of idle spots picked on the floor the employee is on (the rest anywhere). */
+const SAME_FLOOR = 0.7;
+
 export class Worker extends Person {
   constructor(ev) {
     const profile = ev.profile ?? null;
-    // Every session is a random employee: name from main, look from the session id.
-    super(lookFor(ev.sessionId, profile?.level ?? 0));
+    // Employees are lasting members of a project's team: name from main, look from the employee key.
+    super(lookFor(profile?.key ?? ev.sessionId, profile?.level ?? 0));
     this.key = profile?.key ?? ev.sessionId;
     this.name = ev.name ?? null;
     this.profile = profile;
+    this.coverFor = ev.coverFor ?? null; // { name, whom } of the conversation's owner, busy elsewhere, this one covers for
     this.inPlan = ev.mode === 'plan';
     this.boardSpot = null;
     this.context = null;     // % of the context window used
@@ -68,8 +80,10 @@ export class Worker extends Person {
   setProfile(profile) {
     if (!profile) return;
     const oldLevel = this.profile?.level;
+    const oldKey = this.key;
     this.profile = profile;
-    if (oldLevel !== profile.level) this.look = lookFor(this.id, profile.level);
+    this.key = profile.key ?? this.key;
+    if (oldLevel !== profile.level || oldKey !== this.key) this.look = lookFor(this.key, profile.level);
   }
 
   setMode(mode) {
@@ -141,7 +155,10 @@ export class Worker extends Person {
 
   // ---- slacking
 
-  /** Start an idle behaviour. Desk behaviours: browse, nap, sit. Spot behaviours: coffee, sofa, chat. */
+  /**
+   * Start an idle behaviour. Desk behaviours: browse, nap, sit. Spot behaviours (IDLE_POOLS, on either floor):
+   * coffee, sofa, window, booth (phone call), cafe (klubovna table), stool (bar), pouf (by the hooks); chat.
+   */
   startIdle(kind, secs, { spot = null, convo = null } = {}) {
     this.stopIdle();
     const until = now() + secs * 1000;
@@ -154,31 +171,39 @@ export class Worker extends Person {
     if (kind === 'stroll') {
       this.releaseBoard();
       this.activity = 'idle';
-      this.idle = { kind, until, arrived: false, pauseUntil: 0 };
+      // now and then the stroll is on the other floor
+      const floor = Math.random() < 0.25 ? otherFloor(this.floor) : this.floor;
+      this.idle = { kind, until, arrived: false, pauseUntil: 0, floor };
       this.place = 'spot';
       this.strollOn();
       return true;
     }
     const free = IDLE_POOLS[kind]?.filter((s) => !s.owner) ?? [];
-    const target = spot ?? (free.length ? randItem(free) : null);
+    const here = free.filter((s) => s.floor === this.floor);
+    const target = spot ?? (here.length && Math.random() < SAME_FLOOR ? randItem(here) : free.length ? randItem(free) : null);
     if (!target) return false;
     this.releaseBoard();
     target.owner = this;
     this.activity = 'idle';
-    this.idle = { kind, until, spot: target, convo, arrived: false };
+    // the break starts on arrival: the walk there (maybe across the stairs) does not eat it up
+    this.idle = { kind, until: Infinity, spot: target, convo, arrived: false };
     this.place = 'toSpot';
     this.walkTo(target, () => {
       this.place = 'spot';
       if (!this.idle) return;
       this.idle.arrived = true;
+      this.idle.until = now() + secs * 1000;
       if (kind === 'coffee') this.say(randItem(IDLE_LINES.coffee), 3);
+      if (kind === 'booth') this.say(linesFor('booth')[0], 2.5, 'chat');
     });
     return true;
   }
 
-  /** Stroll: walk to a random spot in the open areas, look around for a moment, repeat. */
+  /** Stroll: walk to a random spot in the open areas (sometimes by the printer, bins…), look around, repeat. */
   strollOn() {
-    const p = randomFloorPoint();
+    const { floor } = this.idle;
+    const stops = STROLL_STOPS.map((n) => floors[floor].named[n]).filter(Boolean);
+    const p = stops.length && Math.random() < 0.2 ? randItem(stops) : randomFloorPoint(null, floor);
     if (!p) {
       this.stopIdle();
       return;
@@ -223,8 +248,8 @@ export class Worker extends Person {
         this.strollOn();
         return;
       }
-      if (arrived && !this.walking && !this.bubble && IDLE_LINES[kind] && Math.random() < dt / 18) {
-        this.say(randItem(IDLE_LINES[kind]), 2.5);
+      if (arrived && !this.walking && !this.bubble && linesFor(kind) && Math.random() < dt / 18) {
+        this.say(randItem(linesFor(kind)), 2.5);
       }
       return;
     }
@@ -243,9 +268,8 @@ export class Worker extends Person {
     this.ghost = true;
     this.activity = 'idle';
     this.place = 'ghost';
-    this.path = [];
-    this.onArrive = null;
-    puff(this.x, this.y);
+    this.halt();
+    puff(this.x, this.y, 14, this.floor);
     this.say(randItem(GHOST_LINES), 3);
     this.ghostPause = now() + rand(1000, 3000);
   }
@@ -254,20 +278,20 @@ export class Worker extends Person {
   unGhost() {
     if (!this.ghost) return;
     this.ghost = false;
-    this.path = [];
-    this.onArrive = null;
+    this.halt();
     this.place = 'spot';
-    puff(this.x, this.y);
+    puff(this.x, this.y, 14, this.floor);
   }
 
-  /** Float anywhere – straight through walls and desks – sometimes haunting a busy colleague. */
+  /** Float anywhere on this floor – straight through walls and desks – sometimes haunting a busy colleague. */
   tickGhost(t) {
     if (this.walking || t < this.ghostPause) return;
-    const busy = [...workers.values()].filter((o) => o !== this && !o.gone && !o.ghost && !o.isFree);
+    const top = floors[this.floor].floorY + 4;
+    const busy = [...workers.values()].filter((o) => o !== this && !o.gone && !o.ghost && !o.isFree && o.floor === this.floor && !o.stairs);
     const victim = busy.length && Math.random() < 0.3 ? randItem(busy) : null;
     const target = victim
-      ? { x: clamp(victim.x + randItem([-12, 12]), 10, 310), y: clamp(victim.y - 4, 52, 174) }
-      : { x: rand(10, 310), y: rand(52, 174) };
+      ? { x: clamp(victim.x + randItem([-12, 12]), 10, 310), y: clamp(victim.y - 4, top, 174) }
+      : { x: rand(10, 310), y: rand(top, 174) };
     this.path = [target];
     this.onArrive = () => {
       this.ghostPause = now() + rand(1500, 6000);
@@ -312,11 +336,12 @@ export class Worker extends Person {
       releaseSeat(this);
     };
     if (this.ghost) {
-      // a ghost just floats out
-      this.path = [{ x: DOOR.x, y: DOOR.y }];
+      // a ghost just floats out towards the gate (upstairs: through the window over the courtyard)
+      this.afterStairs = null;
+      this.path = [{ x: ENTRY.x, y: ENTRY.y }];
       this.onArrive = exit;
     } else {
-      this.walkTo(DOOR, exit);
+      this.walkTo(ENTRY, exit);
     }
   }
 
@@ -357,6 +382,7 @@ export class Intern extends Person {
     });
   }
 
+  /** Next to the boss's seat, on whichever floor it is (the walk there and back crosses the stairs). */
   spot() {
     return internSpot(this.boss.seat, this.slot);
   }
@@ -364,7 +390,7 @@ export class Intern extends Person {
   leave() {
     this.leaving = true;
     this.arrived = false;
-    this.walkTo(DOOR, () => {
+    this.walkTo(ENTRY, () => {
       this.gone = true;
     });
   }

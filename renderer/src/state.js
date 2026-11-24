@@ -5,8 +5,13 @@ export const state = {
   soundOn: true,
   limits: null,          // { fiveHour, week, ts } from the status line
   port: 4747,
+  employeeOfWeek: null,  // from the stats module (portrait on the wall)
   projectOfWeek: null,   // from the stats module
   forceHour: null,       // test hook: preview day/night
+  chatOpen: null,        // session whose conversation panel is open (highlighted in the office)
+  todosOpen: false,      // the director's to-do panel is open (in place of a conversation)
+  panelOpen: true,       // the conversation list shows when neither is open (chat/store.js keeps it in localStorage)
+  floor: 'upper',        // floor shown: 'ground' | 'upper' (world/layout.js FLOOR_NAMES, DEFAULT_FLOOR)
 };
 
 // ---- idle behaviour selection & conversations

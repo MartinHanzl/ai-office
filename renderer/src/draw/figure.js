@@ -5,9 +5,18 @@ import { shade } from '../core/util.js';
 
 /**
  * Draw a person with feet at (x, y).
- * pose: { view: 'front'|'back', walking?: number, seated?: bool, arms, animate?, t, headDrop? }
+ * pose: { view: 'front'|'back'|'left'|'right', walking?: number, seated?: bool, arms, animate?, t, headDrop?, face?, speed? }
+ * 'left'/'right' is the profile: seated (beside a desk, on a sofa or the pouf) or standing (facing someone
+ * in a chat, at the drawers); a walking profile falls back to the front view.
  */
 export function figure(x, y, look, pose, k = 1) {
+  if (pose.view === 'left' || pose.view === 'right') {
+    if (pose.seated || pose.walking == null) {
+      profile(x, y, look, pose, k);
+      return;
+    }
+    pose = { ...pose, view: 'front' };
+  }
   const r = (dx, dy, w, h, c) => R(x + dx * k, y + dy * k, w * k, h * k, c);
   const top = look.suit ? '#2c3352' : look.shirt;
   const sleeve = shade(top, -0.22);
@@ -78,12 +87,32 @@ export function figure(x, y, look, pose, k = 1) {
   const tap = pose.animate ? Math.floor(t * 10 * (pose.speed ?? 1)) % 2 : 0;
   switch (pose.arms) {
     case 'type':
+      if (!back && pose.seated) {
+        // seen from the front, behind a desk: forearms forward and down to the keyboard
+        r(-7, -15, 2, 5, sleeve);
+        r(5, -15, 2, 5, sleeve);
+        r(-6, -11, 3, 2, sleeve);
+        r(3, -11, 3, 2, sleeve);
+        r(-4, -10 - tap * 0.5, 2, 1.5, look.skin);
+        r(2, -10 - (pose.animate ? 1 - tap : 0) * 0.5, 2, 1.5, look.skin);
+        break;
+      }
       r(-7, -20, 2, 6, sleeve);
       r(5, -20, 2, 6, sleeve);
       r(-7, -22 - tap, 2, 2, look.skin);
       r(5, -22 - (pose.animate ? 1 - tap : 0), 2, 2, look.skin);
       break;
     case 'mouse':
+      if (!back && pose.seated) {
+        // from the front: one hand on the keyboard, the other on the mouse beside it
+        r(-7, -15, 2, 5, sleeve);
+        r(-6, -11, 3, 2, sleeve);
+        r(-4, -10, 2, 1.5, look.skin);
+        r(5, -15, 2, 5, sleeve);
+        r(5, -11, 2, 2, sleeve);
+        r(6 + (Math.floor(t * 2) % 2) * 0.5, -10, 2, 1.5, look.skin);
+        break;
+      }
       r(-7, -20, 2, 6, sleeve);
       r(-7, -22, 2, 2, look.skin);
       r(5, -19, 3, 5, sleeve);
@@ -170,13 +199,181 @@ export function figure(x, y, look, pose, k = 1) {
 }
 
 
-export function chairBack(x, y, occupied) {
-  const dy = occupied ? 0 : -3;
-  R(x - 7, y - 10 + dy, 14, 7, C.chair);
-  R(x - 7, y - 10 + dy, 14, 1, shade(C.chair, 0.2));
-  R(x - 1, y - 3 + dy, 2, 3, C.chairDark);
-  R(x - 5, y + dy, 10, 1, C.chairDark);
+/**
+ * Profile, facing right (or mirrored for 'left'), feet point (x, y). Seated: thigh along the seat, shin
+ * and shoe forward; standing: both legs straight, the far one a shade darker. Torso and head side-on
+ * (hair at the back, one eye, a nose), the near arm per `arms` with the far arm a shade darker behind it.
+ * Hands reach forward to the desk for 'type'/'mouse'.
+ */
+function profile(x, y, look, pose, k) {
+  const f = pose.view === 'left' ? -1 : 1;
+  const r = (dx, dy, w, h, c) => R(f > 0 ? x + dx * k : x - (dx + w) * k, y + dy * k, w * k, h * k, c);
+  const top = look.suit ? '#2c3352' : look.shirt;
+  const sleeve = shade(top, -0.22);
+  const farSleeve = shade(top, -0.4);
+  const farSkin = shade(look.skin, -0.25);
+  const t = pose.t || 0;
+  const arms = pose.arms ?? 'down';
+  const doze = arms === 'rest';
+  const hd = (pose.headDrop || 0) + (doze ? 2 : 0);
+  const hx = doze ? 1 : 0; // dozing: the head sinks forward onto the arms
+  const tap = pose.animate ? Math.floor(t * 10 * (pose.speed ?? 1)) % 2 : 0;
+
+  // far arm first (behind the torso)
+  switch (arms) {
+    case 'type':
+      r(2, -11, 3, 2, farSleeve);
+      r(5, -11 - (pose.animate ? 1 - tap : 0), 2, 1, farSkin);
+      break;
+    case 'mouse':
+    case 'rest':
+      r(2, -11, 3, 2, farSleeve);
+      break;
+    case 'cheer': {
+      const up = Math.floor(t * 4) % 2;
+      r(-2, -27 - up, 2, 12 + up, farSleeve);
+      r(-2, -29 - up, 2, 2, farSkin);
+      break;
+    }
+    case 'facepalm':
+      r(1, -15, 2, 4, farSleeve);
+      break;
+    default:
+  }
+
+  if (pose.seated) {
+    // legs: thigh along the seat, shin down to the floor, shoe pointing forward
+    r(-3, -7, 7, 2, look.pants);
+    r(2, -5, 2, 4, look.pants);
+    r(2, -1, 3, 1, C.ink);
+  } else {
+    // standing: far leg a step back and darker, near leg straight, shoes pointing forward
+    r(-2, -7, 3, 5, shade(look.pants, -0.25));
+    r(-2, -2, 4, 2, C.ink);
+    r(0, -7, 3, 5, look.pants);
+    r(0, -2, 4, 2, C.ink);
+  }
+
+  // torso
+  r(-3, -15, 6, 8, top);
+  r(-3, -8, 6, 1, sleeve);
+  if (look.suit) r(2, -15, 1, 5, C.white);
+  if (look.tie) r(2, -14, 1, 4, look.tie);
+
+  // head: face forward, hair over the top and the back, ear between
+  r(-1, -16 + hd, 2, 1, look.skin);
+  r(-3 + hx, -23 + hd, 7, 7, look.skin);
+  r(4 + hx, -20 + hd, 1, 2, look.skin); // nose
+  r(-3 + hx, -24 + hd, 7, 2, look.hair);
+  r(-3 + hx, -22 + hd, 2, 5, look.hair);
+  r(3 + hx, -22 + hd, 1, 1, look.hair); // fringe
+  r(-1 + hx, -20 + hd, 1, 2, shade(look.skin, -0.18)); // ear
+  const blink = (t + (look.skin.charCodeAt(2) % 7)) % 4 < 0.12;
+  const face = pose.face ?? 'neutral';
+  const eyeH = blink || doze ? 0.3 : face === 'tired' || face === 'flat' ? 0.5 : 1;
+  r(2 + hx, -19 + hd + (eyeH < 1 ? 0.5 : 0), 1, eyeH, C.ink);
+  const lip = shade(look.skin, -0.35);
+  if (face === 'smile') r(2.5 + hx, -17.5 + hd, 1.5, 0.5, lip);
+  else if (face === 'sad' || face === 'worried') r(3 + hx, -17 + hd, 1, 0.5, lip);
+  else r(3 + hx, -17.3 + hd, 1, 0.5, lip);
+  if (face === 'angry' || face === 'worried') r(1.5 + hx, face === 'angry' ? -20.2 + hd : -20.6 + hd, 1.6, 0.5, look.hair);
+  if (look.glasses) {
+    r(1.4 + hx, -20.2 + hd, 2.6, 2.2, C.ink);
+    r(1.9 + hx, -19.7 + hd, 1.6, 1.2, '#cfe8ff');
+    r(-0.6 + hx, -19.8 + hd, 2, 0.6, C.ink); // temple
+  }
+  if (look.headphones) {
+    r(-3.5 + hx, -25 + hd, 7, 1, C.ink);
+    r(-1.5 + hx, -21.5 + hd, 2, 3.5, C.red);
+  }
+  if (look.cap) {
+    r(-3 + hx, -25 + hd, 7, 2.5, look.cap);
+    r(3 + hx, -23 + hd, 3, 1, shade(look.cap, -0.25));
+  }
+
+  // near arm
+  switch (arms) {
+    case 'type':
+      r(-1, -14, 2, 4, sleeve);
+      r(-1, -11, 6, 2, sleeve);
+      r(5, -11 - tap, 2, 2, look.skin);
+      break;
+    case 'mouse': {
+      const nudge = Math.floor(t * 2) % 2 ? 0.5 : 0;
+      r(-1, -14, 2, 4, sleeve);
+      r(-1, -11, 6, 2, sleeve);
+      r(5 + nudge, -11, 2, 2, look.skin);
+      break;
+    }
+    case 'think':
+      r(-1, -14, 2, 4, sleeve);
+      r(1, -16, 2, 6, sleeve);
+      r(2, -18 + hd, 2, 2, look.skin); // hand under the chin
+      break;
+    case 'raise': {
+      const wave = Math.round(Math.sin(t * 8));
+      r(0 + wave * 0.5, -31, 2, 16, sleeve);
+      r(0 + wave, -34, 2, 3, look.skin);
+      break;
+    }
+    case 'phone':
+      r(-1, -14, 2, 3, sleeve);
+      r(-2, -19 + hd, 2, 6, sleeve);
+      r(-2, -21 + hd, 2, 2, look.skin);
+      r(-1, -22 + hd, 2, 4, C.ink); // phone at the ear
+      break;
+    case 'cheer': {
+      const up = Math.floor(t * 4) % 2;
+      r(1, -28 - up, 2, 13 + up, sleeve);
+      r(1, -30 - up, 2, 2, look.skin);
+      break;
+    }
+    case 'rest':
+      // dozing: forearms folded forward on the desk, the head on them
+      r(-1, -14, 2, 4, sleeve);
+      r(-1, -12, 7, 2, sleeve);
+      break;
+    case 'facepalm':
+      r(-1, -14, 2, 3, sleeve);
+      r(1, -18 + hd, 2, 6, sleeve);
+      r(2 + hx, -21 + hd, 2, 3, look.skin); // hand over the eyes
+      break;
+    case 'mug':
+      r(-1, -14, 2, 4, sleeve);
+      r(-1, -12, 4, 2, sleeve);
+      r(3, -13, 2, 2, look.skin);
+      r(4, -15, 3, 4, C.white);
+      if (Math.floor(t * 3) % 2) r(5, -17 - (t * 2) % 2, 1, 1, '#ffffff99');
+      break;
+    case 'laptop':
+      // laptop on the knees, lid up at the far end
+      r(0, -9, 6, 1, C.metal);
+      r(5, -14, 1, 5, C.metalDark);
+      r(-1, -14, 2, 4, sleeve);
+      r(-1, -11, 4, 2, sleeve);
+      r(3, -11 + (pose.animate ? tap : 0) * 0.5, 2, 1, look.skin);
+      break;
+    case 'talk': {
+      const g = Math.round(Math.sin(t * 7) * 1.5);
+      r(-1, -14, 2, 4, sleeve);
+      r(0, -12, 3, 2, sleeve);
+      r(3, -13 + g, 2, 2, look.skin);
+      break;
+    }
+    default:
+      if (pose.seated) {
+        // hands resting on the thigh
+        r(-1, -14, 2, 5, sleeve);
+        r(0, -10, 3, 2, sleeve);
+        r(3, -10, 2, 2, look.skin);
+      } else {
+        // arm hanging by the side
+        r(-1, -14, 2, 6, sleeve);
+        r(-1, -8, 2, 2, look.skin);
+      }
+  }
 }
+
 
 /** Mouth and brows for the front view. r() is the figure-local rect helper. */
 function drawFace(r, face, hd, look, t) {

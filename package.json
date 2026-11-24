@@ -7,6 +7,7 @@
   "scripts": {
     "start": "electron .",
     "demo": "node scripts/demo.js",
+    "backfill": "node scripts/backfill.js",
     "install-hooks": "node scripts/install-hooks.js",
     "uninstall-hooks": "node scripts/install-hooks.js --uninstall",
     "icon": "node scripts/make-icon.js",
@@ -15,7 +16,9 @@
     "test": "npm run -s lint && npm run -s test:unit && npm run -s test:smoke",
     "test:unit": "node --test \"test/*.test.js\" \"test/*.test.mjs\"",
     "test:smoke": "node scripts/smoke.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "sync-maps": "node scripts/sync-maps.js",
+    "preview": "node scripts/preview.js"
   },
   "devDependencies": {
     "electron": "^45.2.2",
@@ -49,5 +52,10 @@
         "NSAppleEventsUsageDescription": "AI Office přepíná do terminálu, ve kterém běží vybraný agent."
       }
     }
+  },
+  "dependencies": {
+    "dompurify": "^3.4.17",
+    "htm": "^3.1.1",
+    "marked": "^15.0.12"
   }
 }
